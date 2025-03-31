@@ -46,8 +46,6 @@ RUN set -ex; \
     software-properties-common \
     dbus \
     lib32gcc-s1 \
-    libgcc-s1:amd64 \
-    libgcc-s1:i386 \
     vim \
     unzip \
     winetricks;

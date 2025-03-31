@@ -209,7 +209,7 @@ start() {
     if [[ -z "$server_command" ]]; then
         options=("none" "start" "startApi")
         instructions="Select which server you want to start:"
-        source ${UTILS_DIR}/selector.sh
+        source ${MANAGER_DIR}/utils/selector.sh
         Menu "${instructions}" "${options[@]}"
         server_command=${options[$?]}
     fi
@@ -362,7 +362,7 @@ update() {
     # Promt user to select which server they want to start using the selector script
     options=("none" "start" "startApi")
     instructions="Select which server you want to start after the update:"
-    source ${UTILS_DIR}/selector.sh
+    source ${MANAGER_DIR}/utils/selector.sh
     Menu "${instructions}" "${options[@]}"
     server_command=${options[$?]}
 
