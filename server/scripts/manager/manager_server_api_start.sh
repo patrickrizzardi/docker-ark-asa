@@ -59,10 +59,5 @@ ark_flags="${ark_flags} ${ARK_EXTRA_DASH_OPTS}"
 #fix for docker compose exec / docker exec parsing inconsistencies
 STEAM_COMPAT_DATA_PATH=$(eval echo "$STEAM_COMPAT_DATA_PATH")
 
-# Set LD_LIBRARY_PATH to ensure wine can find libgcc_s.so.1
-export LD_LIBRARY_PATH=/usr/lib/i386-linux-gnu:/usr/lib/x86_64-linux-gnu:/usr/lib32:$LD_LIBRARY_PATH
-# Tell Wine to use the native libgcc_s library
-export WINEDLLOVERRIDES="libgcc_s.so.1=n"
-
 #starting server
 /usr/local/bin/wine-wrapper "${ARK_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe" ${cmd} ${ark_flags} >${WINE_LOG_FILE} 2>&1
