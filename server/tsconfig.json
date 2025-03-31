@@ -22,8 +22,8 @@
     "declarationDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "root/*": ["./*"],
-      "utils/*": ["./utils/*"]
+      "root/*": ["./scripts/*"],
+      "utils/*": ["./scripts/utils/*"]
     },
     "sourceMap": false,
     "removeComments": true,
@@ -50,5 +50,5 @@
     "noUncheckedIndexedAccess": true,
     "strictBindCallApply": true
   },
-  "include": ["*.ts", "utils/*.ts"]
+  "include": ["scripts/**/*.ts", "eslint.config.mjs"]
 }

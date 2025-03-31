@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 
 // Function to extract zip file using system unzip
-export async function extractZip(zipFile: string, destination: string): Promise<void> {
+export const extractZip = (zipFile: string, destination: string): void => {
   try {
     console.log(`Extracting ${zipFile} to ${destination}...`);
     // Use system unzip command (faster and more reliable in Linux environments)
@@ -14,10 +14,8 @@ export async function extractZip(zipFile: string, destination: string): Promise<
       console.log('Attempting extraction with additional unzip options...');
       // -j option flattens the directory structure, which can help with problematic ZIPs
       execSync(`unzip -o -j "${zipFile}" -d "${destination}"`, { stdio: 'inherit' });
-    } catch (finalError) {
-      throw new Error(
-        `Failed to extract ${zipFile}: Unzip command failed. Make sure 'unzip' is installed in your container.`,
-      );
+    } catch (_finalError) {
+      throw new Error(`Failed to extract ${zipFile}: Unzip command failed. Make sure 'unzip' is installed in your container.`);
     }
   }
-}
+};

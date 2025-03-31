@@ -60,4 +60,5 @@ ark_flags="${ark_flags} ${ARK_EXTRA_DASH_OPTS}"
 STEAM_COMPAT_DATA_PATH=$(eval echo "$STEAM_COMPAT_DATA_PATH")
 
 #starting server
-wine "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe" ${cmd} ${ark_flags} >${WINE_LOG_FILE} 2>&1
+# wine "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe" ${cmd} ${ark_flags} >${WINE_LOG_FILE} 2>&1
+wine "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe" ${cmd} ${ark_flags}

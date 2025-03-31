@@ -1,7 +1,7 @@
 import { copyFileSync, renameSync, unlinkSync } from 'node:fs';
 
 // Function to safely move files across filesystems
-export function safeMove(src: string, dest: string): void {
+export const safeMove = (src: string, dest: string): void => {
   try {
     // First try with rename (faster if on same filesystem)
     renameSync(src, dest);
@@ -16,4 +16,4 @@ export function safeMove(src: string, dest: string): void {
       throw error;
     }
   }
-}
+};

@@ -51,16 +51,23 @@ services:
   #     - ark
 
   island:
+    # Enable color output in logs  
+    tty: true
     build:
       context: ./server
       dockerfile: Dockerfile
     volumes:
-      - ./server/Saved:/opt/steam/steamapps/common/asa-server
-      - ./server/logs/island-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/island-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
-      - ./server/backups/the-island:/var/backups/asa-server
-      # - ./server/scripts:/opt/manager
-      # - steam_data:/opt/steam
+      - ./server/Saved:/steam/steamapps/common/asa-server
+      - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
+      - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
+      - ./server/backups/the-island:/backups
+
+      # For dev purposes
+      - ./server/scripts:/manager/scripts
+      - ./server/tsconfig.json:/manager/tsconfig.json
+      - ./server/package.json:/manager/package.json
+      - ./server/bun.lock:/manager/bun.lock
+      - ./server/node_modules:/manager/node_modules    
     ports:
       - 7777:7777/udp
       - 7778:7778/udp

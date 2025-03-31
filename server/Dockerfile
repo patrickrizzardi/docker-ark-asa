@@ -3,20 +3,26 @@ FROM ubuntu:22.04
 # Args
 ARG BUN_VERSION=1.2.7
 
-# Env variables
+# User variables
 ENV USER arkuser
 ENV UID 1000
 ENV GID 1000
-ENV ASA_APPID 2430930
-ENV SERVER_SHUTDOWN_TIMEOUT 30
-ENV BASE_DIR /opt
 ENV USER_SCRIPTS /home/${USER}/.local/bin
 
-ENV STEAM_DIR ${BASE_DIR}/steam
-ENV MANAGER_DIR ${BASE_DIR}/manager
+# Steam variables
+ENV STEAM_DIR /steam
 
+# Manager variables
+ENV MANAGER_DIR /manager
+
+# Server variables
+ENV SERVER_SHUTDOWN_TIMEOUT 30
+ENV ASA_APPID 2430930
 ENV ARK_DIR ${STEAM_DIR}/steamapps/common/asa-server
-ENV MANAGER_DIR ${BASE_DIR}/manager
+
+# Backup variables
+ENV BACKUP_PATH /backups
+ENV MAX_BACKUPS 10
 
 # Wine variables
 ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_DIR}
@@ -76,8 +82,8 @@ RUN set -ex; \
     useradd --create-home --shell /bin/bash --uid ${UID} --gid ${GID} ${USER};
 
 # Create the required directories and set the permissions
-RUN set -ex; mkdir -p ${USER_SCRIPTS} ${ARK_DIR} ${MANAGER_DIR} ${STEAM_DIR} ${STEAM_COMPAT_DATA_PATH}
-RUN set -ex; chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR}
+RUN set -ex; mkdir -p ${USER_SCRIPTS} ${ARK_DIR} ${MANAGER_DIR} ${STEAM_DIR} ${STEAM_COMPAT_DATA_PATH} ${BACKUP_PATH}
+RUN set -ex; chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} ${BACKUP_PATH}
 
 # Switch to the ark user so that the server files are owned by the ark user
 USER ${USER}
@@ -89,7 +95,11 @@ RUN set -ex; echo "alias ark='tail -f ${LOG_FILE} ${API_LOG_FILE}'" >> /home/${U
 
 # Install bun
 RUN set -ex; \
-    curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+    curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"; \
+    echo 'export PATH="/home/${USER}/.bun/bin:$PATH"' >> /home/${USER}/.bashrc
+
+# Set the path for bun so that it can be used from this point onwards
+ENV PATH="/home/${USER}/.bun/bin:${PATH}"
 
 # Download steamcmd
 WORKDIR ${STEAM_DIR}
@@ -106,12 +116,22 @@ RUN set -ex; \
     rm -rf rcon.tar.gz rcon-0.10.3-amd64_linux
 
 # Copy scripts to run the server
-COPY --chown=${USER} --chmod=755 ./scripts/setup/entrypoint.sh /entrypoint.sh
-COPY --chown=${USER} --chmod=755 ./scripts ${MANAGER_DIR}
+COPY --chown=${USER} --chmod=755 ./scripts ${MANAGER_DIR}/scripts
+COPY --chown=${USER} --chmod=755 ./tsconfig.json ${MANAGER_DIR}/tsconfig.json
+COPY --chown=${USER} --chmod=755 ./package.json ${MANAGER_DIR}/package.json
+COPY --chown=${USER} --chmod=755 ./bun.lock ${MANAGER_DIR}/bun.lock
 
-# Create the symlink for the manager script. Linking to /usr/local/bin/manager allows us to run the script from anywhere
-# RUN set -ex; ln -s ${MANAGER_DIR}/manager/manager.sh /usr/local/bin/manager
+# Install dependencies
+RUN set -ex; \
+    cd ${MANAGER_DIR}; \
+    bun install --frozen-lockfile
+
+
+# Create an alias for the manager script
+RUN set -ex; \
+    echo "alias manager='bun run ${MANAGER_DIR}/scripts/manager/manager.ts'" >> /home/${USER}/.bashrc
+
 USER ${USER}
 
 WORKDIR ${MANAGER_DIR}
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["bun", "run", "scripts/entrypoint/index.ts"]
