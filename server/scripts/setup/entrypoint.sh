@@ -199,94 +199,102 @@ function installServerAPI {
 # If command is provided, run it
 # The reason this is here is because comonly the next step fails, so I would like to be
 # able to run commands and such to troubleshoot before this command happens IE docker run -it bash
-if [ $# -gt 0 ]; then
-    exec "$@"
-fi
+# if [ $# -gt 0 ]; then
+#     exec "$@"
+# fi
 
 # Install or update ASA server + verify installation
-${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} +quit
+# ${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} +quit
 
-# Find latest release of Server API
-ARK_SERVER_API_LATEST_RELEASE=1.17
+# # Find latest release of Server API
+# ARK_SERVER_API_LATEST_RELEASE=1.17
 
-# Server API
-if [[ -f "${ARK_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe" ]]; then
-    LAST_RELEASE=""
-    if [[ -f "${ARK_DIR}/ShooterGame/Binaries/last_server_api_release.txt" ]]; then
-        LAST_RELEASE=$(cat "${ARK_DIR}/ShooterGame/Binaries/last_server_api_release.txt")
-    fi
+# # Server API
+# if [[ -f "${ARK_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe" ]]; then
+#     LAST_RELEASE=""
+#     if [[ -f "${ARK_DIR}/ShooterGame/Binaries/last_server_api_release.txt" ]]; then
+#         LAST_RELEASE=$(cat "${ARK_DIR}/ShooterGame/Binaries/last_server_api_release.txt")
+#     fi
 
-    if [[ "${LAST_RELEASE}" == "${ARK_SERVER_API_LATEST_RELEASE}" ]]; then
-        echo -e "Server API is up to date: ${GREEN}${ARK_SERVER_API_LATEST_RELEASE}${NC}"
-    else
-        installServerAPI "${ARK_SERVER_API_LATEST_RELEASE}"
-    fi
-else
-    installServerAPI "${ARK_SERVER_API_LATEST_RELEASE}"
-fi
+#     if [[ "${LAST_RELEASE}" == "${ARK_SERVER_API_LATEST_RELEASE}" ]]; then
+#         echo -e "Server API is up to date: ${GREEN}${ARK_SERVER_API_LATEST_RELEASE}${NC}"
+#     else
+#         installServerAPI "${ARK_SERVER_API_LATEST_RELEASE}"
+#     fi
+# else
+#     installServerAPI "${ARK_SERVER_API_LATEST_RELEASE}"
+# fi
 
 # Install plugins
-for plugin in "${plugins[@]}"; do
-    latest_release="${!plugin[latest_release]}"
-    url="${!plugin[url]}"
+# for plugin in "${plugins[@]}"; do
+#     latest_release="${!plugin[latest_release]}"
+#     url="${!plugin[url]}"
 
-    # Convert space-separated string into an array
-    IFS=' ' read -r -a additional_files <<<"${!plugin[additional_files]}"
+#     # Convert space-separated string into an array
+#     IFS=' ' read -r -a additional_files <<<"${!plugin[additional_files]}"
 
-    destination="${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/${plugin}"
+#     destination="${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/${plugin}"
 
-    # Check for last installed version
-    last_release_file="${destination}/last_${plugin}_release.txt"
-    LAST_RELEASE=""
-    if [[ -f "${last_release_file}" ]]; then
-        LAST_RELEASE=$(cat "${last_release_file}")
-    fi
+#     # Check for last installed version
+#     last_release_file="${destination}/last_${plugin}_release.txt"
+#     LAST_RELEASE=""
+#     if [[ -f "${last_release_file}" ]]; then
+#         LAST_RELEASE=$(cat "${last_release_file}")
+#     fi
 
-    # Compare last installed version with latest release version
-    if [[ "${LAST_RELEASE}" == "${latest_release}" ]]; then
-        echo -e "${plugin} is up to date: ${GREEN}${latest_release}${NC}"
-    else
-        install_plugin "${plugin}" "${latest_release}" "${url}" "${destination}" additional_files[@]
-    fi
-done
+#     # Compare last installed version with latest release version
+#     if [[ "${LAST_RELEASE}" == "${latest_release}" ]]; then
+#         echo -e "${plugin} is up to date: ${GREEN}${latest_release}${NC}"
+#     else
+#         install_plugin "${plugin}" "${latest_release}" "${url}" "${destination}" additional_files[@]
+#     fi
+# done
 
 # Start server through manager
 # manager startApi &
 
 # Register SIGTERM handler to stop server gracefully
-trap "manager stop --saveworld" SIGTERM
-echo -e "${GREEN}------------------------ Server is ready${NC}. Use 'manager' command to manage the server. ${GREEN}------------------------${NC}"
+# trap "manager stop --saveworld" SIGTERM
+# echo -e "${GREEN}------------------------ Server is ready${NC}. Use 'manager' command to manage the server. ${GREEN}------------------------${NC}"
+
+if [ $# -gt 0 ]; then
+    exec "$@"
+fi
 
 # Function to tail multiple log files
-tail_logs() {
-    while true; do # Start an infinite loop to continuously monitor the log files
-        # Check if the main ShooterGame.log file exists
-        if [[ -f "${LOG_FILE}" ]]; then
-            # Tail the ShooterGame.log file and run it in the background
-            tail -F "${LOG_FILE}" &
-        fi
+# tail_logs() {
+#     while true; do # Start an infinite loop to continuously monitor the log files
+#         # Check if the main ShooterGame.log file exists
+#         if [[ -f "${LOG_FILE}" ]]; then
+#             # Tail the ShooterGame.log file and run it in the background
+#             tail -F "${LOG_FILE}" &
+#         fi
 
-        for log_pattern in "${GAME_LOG_FILE}" "${API_LOG_FILE}" "${WINE_LOG_FILE}"; do
-            # Use ls -t to sort files by modification time and head -n 1 to get the most recent one
-            latest_log=$(ls -t "${log_pattern}" 2>/dev/null | head -n 1)
-            # Check if a latest_log was found
-            if [[ -n "${latest_log}" ]]; then
-                # Tail the latest log file and run it in the background
-                tail -F "${latest_log}" &
-            fi
-        done
+#         for log_pattern in "${GAME_LOG_FILE}" "${API_LOG_FILE}" "${WINE_LOG_FILE}"; do
+#             # Use ls -t to sort files by modification time and head -n 1 to get the most recent one
+#             latest_log=$(ls -t "${log_pattern}" 2>/dev/null | head -n 1)
+#             # Check if a latest_log was found
+#             if [[ -n "${latest_log}" ]]; then
+#                 # Tail the latest log file and run it in the background
+#                 tail -F "${latest_log}" &
+#             fi
+#         done
 
-        # Wait for all background tail processes to finish
-        wait
+#         # Wait for all background tail processes to finish
+#         wait
 
-        # Sleep for a short period (5 seconds) before checking for log files again
-        # This reduces CPU usage and avoids constant checking
-        sleep 5
-    done
-}
+#         # Sleep for a short period (5 seconds) before checking for log files again
+#         # This reduces CPU usage and avoids constant checking
+#         sleep 5
+#     done
+# }
 
-# Start the log tailing in the background
-tail_logs
+# # Start the log tailing in the background
+# tail_logs
+
+# run index.ts
+export PATH="/home/${USER}/.bun/bin:$PATH"
+bun run /opt/manager/index.ts
 
 # The script will never reach this point, as the while loop above will run indefinitely.
 # However, the exit command is included for completeness and to indicate that the script has finished executing.

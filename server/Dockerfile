@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+# Args
+ARG BUN_VERSION=1.2.7
+
 # Env variables
 ENV USER arkuser
 ENV UID 1000
@@ -11,9 +14,9 @@ ENV USER_SCRIPTS /home/${USER}/.local/bin
 
 ENV STEAM_DIR ${BASE_DIR}/steam
 ENV MANAGER_DIR ${BASE_DIR}/manager
-ENV UTILS_DIR ${BASE_DIR}/utils
 
 ENV ARK_DIR ${STEAM_DIR}/steamapps/common/asa-server
+ENV MANAGER_DIR ${BASE_DIR}/manager
 
 # Wine variables
 ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_DIR}
@@ -43,6 +46,8 @@ RUN set -ex; \
     software-properties-common \
     dbus \
     lib32gcc-s1 \
+    libgcc-s1:amd64 \
+    libgcc-s1:i386 \
     vim \
     unzip \
     winetricks;
@@ -84,6 +89,10 @@ RUN set -ex; echo "alias ll='ls -alF'" >> /home/${USER}/.bashrc
 RUN set -ex; echo "export PATH='$PATH:/home/${USER}/.local/bin'" >> /home/${USER}/.bashrc
 RUN set -ex; echo "alias ark='tail -f ${LOG_FILE} ${API_LOG_FILE}'" >> /home/${USER}/.bashrc
 
+# Install bun
+RUN set -ex; \
+    curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+
 # Download steamcmd
 WORKDIR ${STEAM_DIR}
 RUN set -ex; curl "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
@@ -100,13 +109,11 @@ RUN set -ex; \
 
 # Copy scripts to run the server
 COPY --chown=${USER} --chmod=755 ./scripts/setup/entrypoint.sh /entrypoint.sh
-COPY --chown=${USER} --chmod=755 ./scripts/manager ${MANAGER_DIR}
-COPY --chown=${USER} --chmod=755 ./scripts/utils ${UTILS_DIR}
+COPY --chown=${USER} --chmod=755 ./scripts ${MANAGER_DIR}
 
 # Create the symlink for the manager script. Linking to /usr/local/bin/manager allows us to run the script from anywhere
-USER root
-RUN set -ex; ln -s ${MANAGER_DIR}/manager.sh /usr/local/bin/manager
+# RUN set -ex; ln -s ${MANAGER_DIR}/manager/manager.sh /usr/local/bin/manager
 USER ${USER}
 
-WORKDIR ${ARK_DIR}
+WORKDIR ${MANAGER_DIR}
 ENTRYPOINT ["/entrypoint.sh"]

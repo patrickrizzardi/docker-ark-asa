@@ -1,0 +1,38 @@
+{
+  "name": "ark-server-manager",
+  "version": "1.0.0",
+  "module": "app/index.ts",
+  "type": "module",
+  "main": "/index.js",
+  "scripts": {
+    "test": "bun test --watch",
+    "test:production": "bun test --timeout 20 --rerun-each 10 --bail 10",
+    "clean": "rm -rf dist && rm -rf storage && echo 'Done.'",
+    "build": "bun build --target=bun app/index.ts --outfile=dist/index.js",
+    "start": "bun --watch app/index.ts",
+    "lint": "eslint . --fix --quiet --color --cache",
+    "lint:format": "prettier --check .",
+    "lint:spelling": "cspell . --no-progress --unique",
+    "format": "prettier --write app"
+  },
+  "author": "Patrick Rizzardi <patrick@redact.digital> (https://redact.digital)",
+  "dependencies": {
+    "colorette": "^2.0.20"
+  },
+  "devDependencies": {
+    "@eslint/compat": "^1.2.3",
+    "@types/adm-zip": "^0.5.7",
+    "bun-types": "^1.1.34",
+    "cspell": "8.16.0",
+    "eslint": "^9.14.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "8.14.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
