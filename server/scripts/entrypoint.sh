@@ -16,17 +16,17 @@ echo "🖥️ Setting up virtual display..."
 # Create X11 directory if needed (but don't try to change permissions)
 mkdir -p /tmp/.X11-unix 2>/dev/null || true
 
-# Start Xvfb 
+# Start Xvfb
 Xvfb :99 -screen 0 1024x768x16 -ac &
 XVFB_PID=$!
 sleep 2
 
 # Make sure X server started properly
-if ! ps -p $XVFB_PID > /dev/null; then
-    echo "❌ Failed to start X server, trying alternate approach..."
-    Xvfb :99 -nolisten tcp -screen 0 1024x768x16 &
-    XVFB_PID=$!
-    sleep 2
+if ! ps -p $XVFB_PID >/dev/null; then
+  echo "❌ Failed to start X server, trying alternate approach..."
+  Xvfb :99 -nolisten tcp -screen 0 1024x768x16 &
+  XVFB_PID=$!
+  sleep 2
 fi
 
 # Initialize Wine environment
@@ -41,8 +41,17 @@ if [ "$1" ]; then
   exit $?
 fi
 
-echo "🚀 Initializing ARK server..."
+# Start the server monitor in the background
+echo "🔍 Starting server monitor..."
+
+# Use monitorManager to start the monitor
+if "${MANAGER_DIR}/monitorManager.sh" start; then
+  echo "✅ Server monitor started successfully"
+else
+  echo "⚠️ Warning: Failed to start server monitor - server will run without monitoring"
+fi
 
 # Execute the init.sh script directly from its location
+echo "🚀 Initializing ARK server..."
 cd "${MANAGER_DIR}"
 exec ./init.sh "$@"

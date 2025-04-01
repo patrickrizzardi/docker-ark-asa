@@ -30,6 +30,7 @@ check_env_variables() {
     
     for var in "${vars_to_check[@]}"; do
         if [ -z "${!var}" ]; then
+            print_info "Environment variable $var is not set"
             if [ "$optional" = "1" ]; then
                 print_warning "⚠️ Warning: Optional environment variable $var is not set"
             else

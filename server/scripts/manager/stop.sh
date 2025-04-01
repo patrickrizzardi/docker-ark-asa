@@ -3,15 +3,20 @@
 # ARK Server Stop Script
 # Gracefully stops a running ARK server instance
 #
-# Usage: ./stop.sh [--force]
-# - --force: Skip player checks and force server shutdown
+# Usage: ./stop.sh [options]
+# Options:
+#   --force         Skip player checks and force server shutdown
+#   --save-only     Only save the world, don't shut down the server
+#   --countdown <minutes>  Use a countdown timer before shutdown
+#   --restart       Indicate this is a restart operation (changes messages)
+#   --help          Display this help message
 #
 # =============================================================================
 
 # Load environment variables and utilities
 UTILS_PATH="$MANAGER_DIR/utils"
 source "${UTILS_PATH}/colorPrinter.sh"
-source "${UTILS_PATH}/serverStatus.sh"
+source "${UTILS_PATH}/processManager.sh"
 source "${UTILS_PATH}/envManager.sh"
 
 # =============================================================================
@@ -20,222 +25,195 @@ source "${UTILS_PATH}/envManager.sh"
 
 # Required environment variables for stopping the server
 declare -a STOP_REQUIRED_VARS=(
-    "ARK_ADMIN_PASSWORD"     # Admin password for RCON
-    "RCON_PORT"              # RCON port for remote commands
+    "ARK_ADMIN_PASSWORD"      # Admin password for RCON
+    "RCON_PORT"               # RCON port for remote commands
     "SERVER_SHUTDOWN_TIMEOUT" # Maximum time to wait for shutdown
+    "ARK_DIR"                 # ARK installation directory
+    "STEAM_DIR"               # SteamCMD directory
 )
 
-# Get the container's IP address
-get_container_ip() {
-    local ip=$(hostname -I | awk '{print $1}')
-    if [[ -z "$ip" ]]; then
-        echo "0.0.0.0"  # Fallback to all interfaces
-    else
-        echo "$ip"
-    fi
-}
+# Optional environment variables
+declare -a STOP_OPTIONAL_VARS=(
+    "SHUTDOWN_COUNTDOWN_MINUTES" # Default countdown minutes before shutdown
+)
 
-# RCON command setup
-CONTAINER_IP=$(get_container_ip)
-RCON_PATH="/home/arkuser/.local/bin/rcon"
-RCON_CMDLINE=("${RCON_PATH}" -a "${CONTAINER_IP}:${RCON_PORT}" -p "${ARK_ADMIN_PASSWORD}" -t 5)
+# Optional variables with defaults
+SHUTDOWN_COUNTDOWN_MINUTES=${SHUTDOWN_COUNTDOWN_MINUTES:-2}
+SHUTDOWN_COMPLETE_FLAG="${ARK_DIR}/shutdown_complete.flag"
+
+# Spinner configuration for visual feedback
+declare -a SPINNER=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+SPINNER_IDX=0
 
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
 
-# Log RCON attempts for debugging
-log_rcon_attempt() {
-    local cmd="$1"
-    local result="$2"
-    local status="$3"
-    
-    print_info "RCON debug: Command: $cmd, Exit Code: $status, Output: $result"
+# Function to display a spinner with a message
+show_spinner() {
+    local message="$1"
+    local current_spinner=${SPINNER[$SPINNER_IDX]}
+    SPINNER_IDX=$(((SPINNER_IDX + 1) % ${#SPINNER[@]}))
+
+    printf "\r${current_spinner} ${message}"
 }
 
-# Check if RCON is available
-check_rcon_available() {
-    if [ -x "${RCON_PATH}" ]; then
-        return 0
-    elif command -v rcon >/dev/null 2>&1; then
+# Function to check if save is complete by examining logs
+save_complete_check() {
+    local log_file="${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log"
+
+    if [ ! -f "$log_file" ]; then
+        print_warning "⚠️ Server log file not found"
+        return 1
+    fi
+
+    if tail -n 20 "$log_file" | grep -q "World Save Complete"; then
         return 0
     else
-        print_warning "⚠️ RCON command not found. Cannot communicate with server via RCON."
-        print_info "To install RCON tools, you need to add the package to your Dockerfile."
         return 1
     fi
 }
 
-# Run an RCON command with retries and error handling
-run_rcon_command() {
-    local cmd="$1"
-    
-    # Check if rcon is available first
-    if ! command -v "${RCON_PATH}" >/dev/null 2>&1; then
-        echo "RCON_NOT_AVAILABLE"
-        return 2
+# Function to check if server has stopped properly by examining logs
+server_stopped_check() {
+    local log_file="${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log"
+
+    if [ ! -f "$log_file" ]; then
+        print_warning "⚠️ Server log file not found"
+        return 1
     fi
-    
-    local attempt=1
-    local max_attempts=3
-    local delay=2
-    
-    while [ $attempt -le $max_attempts ]; do
-        print_info "Attempt $attempt of $max_attempts: Sending RCON command: $cmd"
-        
-        local output=$(${RCON_CMDLINE[@]} "$cmd" 2>&1)
-        local status=$?
-        
-        log_rcon_attempt "$cmd" "$output" "$status"
-        
-        if [ $status -eq 0 ]; then
-            echo "$output"
-            return 0
-        fi
-        
-        print_warning "RCON attempt $attempt failed. Waiting ${delay}s before retry..."
-        sleep $delay
-        attempt=$((attempt + 1))
-        delay=$((delay * 2))  # Exponential backoff
-    done
-    
-    # All attempts failed
-    echo "RCON_FAILED"
-    return 1
+
+    if tail -n 30 "$log_file" | grep -qi "server.*stopped\|exit.*success\|logfile.*closed"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Function to create shutdown flag file
+create_shutdown_flag() {
+    echo "$(date) - Server shutdown initiated by PID $$" >"$SHUTDOWN_COMPLETE_FLAG"
+    print_success "✅ Created shutdown flag: $SHUTDOWN_COMPLETE_FLAG"
+}
+
+# Function to clean up any remaining processes and resources
+cleanup_processes() {
+    print_info "Cleaning up any remaining processes..."
+
+    # Kill any remaining wine processes
+    pkill -9 -f "wine" >/dev/null 2>&1 || true
+    pkill -9 -f "wineserver" >/dev/null 2>&1 || true
+
+    # Clean temporary files
+    print_info "Cleaning temporary files..."
+    rm -rf "${STEAM_DIR}/Steam/logs"/* 2>/dev/null || true
+    rm -rf "${STEAM_DIR}/Steam/appcache/httpcache"/* 2>/dev/null || true
+    rm -rf /tmp/SteamCMD_* 2>/dev/null || true
+
+    print_success "✅ Cleanup completed"
 }
 
 # =============================================================================
 # SERVER MANAGEMENT FUNCTIONS
 # =============================================================================
 
-# Get server PID function
-get_server_pid() {
-    # Try to find wine64 running ArkAscendedServer.exe
-    local ark_pid=$(ps aux | grep -v grep | grep -i "wine64.*ArkAscendedServer.exe" | awk '{print $2}' | head -1)
-    if [[ -n "$ark_pid" ]]; then
-        echo $ark_pid
-        return 0
-    fi
+# Check for connected players
+check_connected_players() {
+    local force_flag="$1"
 
-    # Try to find wine64 running AsaApiLoader.exe
-    ark_pid=$(ps aux | grep -v grep | grep -i "wine64.*AsaApiLoader.exe" | awk '{print $2}' | head -1)
-    if [[ -n "$ark_pid" ]]; then
-        echo $ark_pid
-        return 0
-    fi
-
-    # No server process found
-    echo "0"
-    return 1
-}
-
-# Save world data via RCON
-save_world() {
-    print_info "Saving world data..."
-    
-    # If rcon is not available, skip the check
-    if ! command -v "${RCON_PATH}" >/dev/null 2>&1; then
-        print_warning "⚠️ Cannot save world: RCON not available"
-        return 1
-    fi
-    
-    # Directly run the RCON command with full path
-    local out=$("${RCON_PATH}" -a "${CONTAINER_IP}:${RCON_PORT}" -p "${ARK_ADMIN_PASSWORD}" -t 5 "SaveWorld" 2>&1)
-    local res=$?
-    
-    if [[ $res == 0 && ( "$out" == *"World Saved"* || "$out" == *"world saved"* ) ]]; then
-        print_success "✅ World saved successfully"
-        return 0
-    else
-        print_error "❌ Failed to save world"
-        print_warning "Server might be offline or not responding to RCON commands"
-        return 1
-    fi
-}
-
-# Check player count before stopping
-check_player_count() {
     print_info "Checking for connected players..."
-    
-    # If rcon is not available, skip the check
-    if ! command -v "${RCON_PATH}" >/dev/null 2>&1; then
-        if [[ "$1" == "--force" ]]; then
-            print_warning "⚠️ Cannot check player count: RCON not available"
+
+    # Get player count from the listPlayers.sh script
+    local player_count=$(./rconUtils/listPlayers.sh --silent)
+    local res=$?
+
+    if [[ $res -ne 0 ]]; then
+        print_error "❌ Failed to check connected players"
+
+        if [[ "$force_flag" == "--force" ]]; then
             print_warning "Force flag detected - proceeding with shutdown anyway"
             return 0
         else
-            print_warning "⚠️ Cannot check player count: RCON not available"
-            print_warning "This could be dangerous if players are connected"
-            print_info "To stop the server anyway, use: $(basename $0) --force"
+            print_error "❌ Cannot stop server without confirming player count"
+            print_info "Use --force to override this check"
             return 1
         fi
     fi
-    
-    local out=$(run_rcon_command "ListPlayers")
-    local res=$?
-    
-    if [[ $res == 0 ]]; then
-        # No Players Connected case - check different possible outputs
-        if [[ "$out" == *"No Players"* ]] || [[ "$out" == *"No players"* ]] || [[ -z "$out" ]] || [[ "$out" =~ ^[[:space:]]*$ ]]; then
-            print_success "✅ No players connected"
-            return 0
+
+    # Check if players are connected
+    if [[ $player_count -gt 0 ]]; then
+        print_warning "⚠️ Found $player_count connected players"
+
+        if [[ "$force_flag" != "--force" ]]; then
+            print_info "To force shutdown with connected players, use --force"
+            return 1
         else
-            # Filter out any header lines or system messages and count actual player entries
-            local filtered_output=$(echo "$out" | grep -v "No Players" | grep -v "^$" | grep -v "Players:")
-            local num_players=$(echo "$filtered_output" | grep -c ".")
-            
-            if [[ $num_players -eq 0 ]]; then
-                print_success "✅ No actual players connected detected"
-                return 0
-            fi
-            
-            print_warning "⚠️ Server has $num_players connected players!"
-            print_info "Player list: $filtered_output"
-            
-            if [[ "$1" == "--force" ]]; then
-                print_warning "Force flag detected - proceeding with shutdown anyway"
-                return 0
-            else
-                print_error "❌ Cannot stop server with players connected"
-                print_info "Use --force to override this check"
-                return 1
-            fi
+            print_warning "Force flag detected - proceeding with shutdown despite connected players"
         fi
-    elif [[ $res == 2 ]]; then
-        # RCON not available was already reported
-        return 1
     else
-        print_warning "⚠️ Could not check player count (RCON failed)"
-        if [[ "$1" == "--force" ]]; then
+        print_success "✅ No connected players detected"
+    fi
+
+    return 0
+}
+
+# Save world data with verification from logs
+save_world_data() {
+    local force_flag="$1"
+
+    print_info "Saving world data..."
+
+    # Send the save command via RCON
+    if ! ./rcon.sh "SaveWorld" --silent; then
+        print_error "❌ Failed to send save command"
+
+        if [[ "$force_flag" == "--force" ]]; then
+            print_warning "⚠️ Continuing with shutdown may result in data loss"
             print_warning "Force flag detected - proceeding with shutdown anyway"
             return 0
         else
-            print_warning "Server may not be fully initialized or RCON isn't working"
-            print_info "To stop the server anyway, use: $(basename $0) --force"
+            print_error "❌ Cannot stop server without saving world"
+            print_info "Use --force to override this check"
+            return 1
+        fi
+    fi
+
+    # Wait for save to complete by checking logs
+    print_info "Waiting for save to complete..."
+    local save_wait=0
+    local max_save_wait=60 # 1 minute max wait for save
+
+    while ! save_complete_check && [ $save_wait -lt $max_save_wait ]; do
+        show_spinner "Waiting for world save to complete... (${save_wait}s/${max_save_wait}s)"
+        sleep 2
+        save_wait=$((save_wait + 2))
+    done
+    echo "" # Add a newline after the spinner
+
+    if [ $save_wait -lt $max_save_wait ]; then
+        print_success "✅ World save completed successfully"
+        return 0
+    else
+        print_warning "⚠️ World save timed out"
+
+        if [[ "$force_flag" == "--force" ]]; then
+            print_warning "Force flag detected - proceeding with shutdown anyway"
+            return 0
+        else
+            print_error "❌ Cannot confirm world save completed"
+            print_info "Use --force to override this check"
             return 1
         fi
     fi
 }
 
-# Send shutdown command via RCON
+# Send shutdown command and verify from logs
 send_shutdown_command() {
     print_info "Sending shutdown command to server..."
-    
-    # If rcon is not available, skip the command
-    if ! command -v "${RCON_PATH}" >/dev/null 2>&1; then
-        print_warning "⚠️ Cannot send shutdown command: RCON not available"
-        return 1
-    fi
-    
-    local out=$(run_rcon_command "DoExit")
-    local res=$?
-    
-    if [[ $res == 0 && ( "$out" == *"Exiting..."* || "$out" == *"exiting"* ) ]]; then
+
+    if ./rcon.sh "DoExit" --silent; then
         print_success "✅ Shutdown command sent successfully"
         return 0
-    elif [[ $res == 2 ]]; then
-        # RCON not available was already reported
-        return 1
     else
         print_error "❌ Failed to send shutdown command"
         print_warning "Server might be offline or not responding to RCON commands"
@@ -243,39 +221,107 @@ send_shutdown_command() {
     fi
 }
 
-# Wait for server process to terminate
+# Wait for server process to terminate with visual feedback
 wait_for_server_shutdown() {
     local pid=$1
     local timeout=$SERVER_SHUTDOWN_TIMEOUT
-    
+
     print_info "Waiting up to ${timeout} seconds for server to shut down..."
-    
+
     local timer=0
-    local check_interval=5
-    
+    local check_interval=2
+
+    # First check logs for server stopped message
     while [[ $timer -lt $timeout ]]; do
-        if ! ps -p $pid > /dev/null 2>&1; then
-            print_success "✅ Server stopped successfully"
+        show_spinner "Waiting for server shutdown confirmation... (${timer}s/${timeout}s)"
+
+        if server_stopped_check; then
+            echo "" # Add a newline after the spinner
+            print_success "✅ Server shutdown confirmed in logs"
+
+            # Give the process a moment to actually terminate
+            sleep 3
+
+            if ! ps -p $pid >/dev/null 2>&1; then
+                print_success "✅ Server process terminated"
+                return 0
+            fi
+
+            # If we saw the shutdown in logs but process is still running,
+            # wait a bit longer in case it's doing cleanup
+            local extra_wait=0
+            local max_extra_wait=20
+
+            while [[ $extra_wait -lt $max_extra_wait ]]; do
+                show_spinner "Server shutdown confirmed but process still exists, waiting... (${extra_wait}s/${max_extra_wait}s)"
+
+                if ! ps -p $pid >/dev/null 2>&1; then
+                    echo "" # Add a newline after the spinner
+                    print_success "✅ Server process terminated after cleanup"
+                    return 0
+                fi
+
+                sleep 2
+                extra_wait=$((extra_wait + 2))
+            done
+
+            echo "" # Add a newline after the spinner
+            print_warning "⚠️ Server shutdown confirmed in logs but process still exists"
+            break
+        fi
+
+        # Also check if the process has terminated directly
+        if ! ps -p $pid >/dev/null 2>&1; then
+            echo "" # Add a newline after the spinner
+            print_success "✅ Server process terminated"
             return 0
         fi
-        
-        print_info "Server still running, waiting ${check_interval} seconds..."
+
         sleep $check_interval
         timer=$((timer + check_interval))
     done
-    
+
+    echo "" # Add a newline after the spinner
     print_error "❌ Server did not stop within ${timeout} seconds"
     return 1
 }
 
-# Force kill the server process
+# Force kill the server process with cleanup
 force_shutdown() {
     local pid=$1
-    
+
     print_warning "⚠️ Forcing server shutdown..."
-    
-    if kill -9 $pid > /dev/null 2>&1; then
-        print_success "✅ Server process forcefully terminated"
+
+    # Try SIGTERM first for a cleaner shutdown
+    print_info "Sending SIGTERM to process $pid..."
+    if kill -15 $pid >/dev/null 2>&1; then
+        # Wait a short time to see if SIGTERM works
+        local timer=0
+        local timeout=10
+
+        while [[ $timer -lt $timeout ]]; do
+            show_spinner "Waiting for process to terminate after SIGTERM... (${timer}s/${timeout}s)"
+
+            if ! ps -p $pid >/dev/null 2>&1; then
+                echo "" # Add a newline after the spinner
+                print_success "✅ Server process terminated gracefully with SIGTERM"
+                return 0
+            fi
+
+            sleep 1
+            timer=$((timer + 1))
+        done
+        echo "" # Add a newline after the spinner
+    fi
+
+    # If SIGTERM didn't work, use SIGKILL
+    print_warning "⚠️ SIGTERM did not work, using SIGKILL..."
+    if kill -9 $pid >/dev/null 2>&1; then
+        print_success "✅ Server process forcefully terminated with SIGKILL"
+
+        # Also kill any other related processes
+        cleanup_processes
+
         return 0
     else
         print_error "❌ Failed to forcefully terminate server process"
@@ -283,87 +329,278 @@ force_shutdown() {
     fi
 }
 
+# Function to perform a countdown with player notifications
+perform_countdown() {
+    local minutes=$1
+    local is_restart=$2
+
+    # Determine message type based on restart flag
+    local message="Server shutting down in"
+    if [[ "$is_restart" == "true" ]]; then
+        message="Server restarting in"
+    fi
+
+    print_info "Starting ${minutes}-minute countdown before shutdown..."
+
+    # Initial notification
+    ./rcon.sh "ServerChat ${message} ${minutes} minute(s)" --silent
+
+    # Calculate total seconds
+    local total_seconds=$((minutes * 60))
+    local seconds_remaining=$total_seconds
+
+    # Track when we last sent a notification to avoid duplicates
+    local last_notification_time=$seconds_remaining
+    local last_minute=-1
+
+    # Main countdown loop
+    while [ $seconds_remaining -gt 0 ]; do
+        local minutes_remaining=$((seconds_remaining / 60))
+        local seconds_in_minute=$((seconds_remaining % 60))
+
+        # Only send notifications at specific intervals
+        local should_notify=false
+
+        # At 5-minute intervals when > 5 minutes
+        if [ $minutes_remaining -ge 5 ] && [ $seconds_in_minute -eq 0 ] && [ $((minutes_remaining % 5)) -eq 0 ] && [ $minutes_remaining -ne $last_minute ]; then
+            should_notify=true
+        # At the 3 minute mark
+        elif [ $minutes_remaining -eq 3 ] && [ $seconds_in_minute -eq 0 ] && [ $minutes_remaining -ne $last_minute ]; then
+            should_notify=true
+        # At the 1 minute mark
+        elif [ $minutes_remaining -eq 1 ] && [ $seconds_in_minute -eq 0 ] && [ $minutes_remaining -ne $last_minute ]; then
+            should_notify=true
+        # At the 30 second mark
+        elif [ $minutes_remaining -eq 0 ] && [ $seconds_in_minute -eq 30 ]; then
+            should_notify=true
+        # At the 10 second mark and counting down from 10 to 1
+        elif [ $minutes_remaining -eq 0 ] && [ $seconds_in_minute -le 10 ] && [ $seconds_in_minute -gt 0 ]; then
+            should_notify=true
+        fi
+
+        # Send notification if needed
+        if [ "$should_notify" = "true" ]; then
+            last_minute=$minutes_remaining
+
+            # Format the time message
+            local time_msg=""
+            if [ $minutes_remaining -gt 0 ]; then
+                time_msg="${minutes_remaining} minute(s)"
+            else
+                time_msg="${seconds_in_minute} second(s)"
+            fi
+
+            # Send the message via RCON
+            ./rcon.sh "ServerChat ${message} ${time_msg}" --silent
+
+            # Print to console
+            print_info "Notified players: ${message} ${time_msg}"
+        fi
+
+        # Display countdown progress
+        if [ $minutes_remaining -gt 0 ]; then
+            show_spinner "Countdown: ${minutes_remaining}m ${seconds_in_minute}s remaining"
+        else
+            show_spinner "Countdown: ${seconds_in_minute}s remaining"
+        fi
+
+        sleep 1
+        ((seconds_remaining--))
+    done
+
+    echo "" # Add a newline after the spinner
+    print_success "✅ Countdown completed"
+
+    # Final notification
+    if [[ "$is_restart" == "true" ]]; then
+        ./rcon.sh "ServerChat Server is restarting NOW!" --silent
+    else
+        ./rcon.sh "ServerChat Server is shutting down NOW!" --silent
+    fi
+
+    return 0
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
+
+# Parse arguments
+parse_arguments() {
+    FORCE_FLAG=""
+    SAVE_ONLY="no"
+    COUNTDOWN="no"
+    COUNTDOWN_MINUTES=$SHUTDOWN_COUNTDOWN_MINUTES
+    IS_RESTART="false"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --force)
+            FORCE_FLAG="--force"
+            shift
+            ;;
+        --save-only)
+            SAVE_ONLY="yes"
+            shift
+            ;;
+        --countdown)
+            COUNTDOWN="yes"
+            # Check if next argument is a number for countdown minutes
+            if [[ $# -gt 1 && "$2" =~ ^[0-9]+$ ]]; then
+                COUNTDOWN_MINUTES="$2"
+                shift
+            fi
+            shift
+            ;;
+        --restart)
+            IS_RESTART="true"
+            shift
+            ;;
+        --help)
+            echo "Usage: ./stop.sh [options]"
+            echo "Options:"
+            echo "  --force         Skip player checks and force server shutdown"
+            echo "  --save-only     Only save the world, don't shut down the server"
+            echo "  --countdown <minutes>  Use a countdown timer before shutdown (default: $SHUTDOWN_COUNTDOWN_MINUTES)"
+            echo "  --restart       Indicate this is a restart operation (changes messages)"
+            echo "  --help          Display this help message"
+            exit 0
+            ;;
+        *)
+            print_warning "⚠️ Unknown option: $1"
+            shift
+            ;;
+        esac
+    done
+}
 
 # Main function
 main() {
     clear # Start with a clean screen
     print_header "🛑 ARK Server Shutdown"
     echo ""
-    
+
+    # Parse command-line arguments
+    parse_arguments "$@"
+
     # Check required environment variables
     if ! check_env_variables STOP_REQUIRED_VARS 0; then
         print_error "❌ Missing required environment variables"
         exit 1
     fi
-    
-    # Parse arguments
-    local force_flag=""
-    if [[ "$1" == "--force" ]]; then
-        force_flag="--force"
-        print_warning "⚠️ Force mode enabled - will terminate server regardless of player count"
-    fi
-    
+
+    # Check optional environment variables
+    check_env_variables STOP_OPTIONAL_VARS 1
+
+    print_info "Environment variables checked"
+
     # Check if server is running
     print_info "Checking server status..."
-    local server_pid=$(get_server_pid)
-    
-    if [[ "$server_pid" == "0" ]]; then
+    local ark_server_pid=$(get_ark_server_pid)
+    if [[ "$ark_server_pid" == "0" ]]; then
         print_warning "⚠️ No ARK server process found"
         exit 0
     fi
-    
-    print_success "✅ Found ARK server process with PID: $server_pid"
-    
-    # Check process uptime to see if it's freshly started
-    local process_start_time=$(ps -o etimes= -p $server_pid)
-    if [[ $process_start_time -lt 60 ]]; then
-        print_warning "⚠️ Server was started recently (${process_start_time} seconds ago)"
-        print_info "Waiting 10 seconds for RCON to initialize..."
-        sleep 10
+
+    print_success "✅ Found ARK server process with PID: $ark_server_pid"
+
+    # When using force flag, skip all checks and go straight to shutdown
+    if [[ "$FORCE_FLAG" == "--force" ]]; then
+        print_warning "⚠️ Force flag detected - skipping player check and world save"
+
+        # Still try to save the world
+        print_info "Attempting world save before force shutdown..."
+        ./rcon.sh "SaveWorld" --silent
+
+        # Give it a moment to try to save
+        sleep 5
+
+        if force_shutdown $ark_server_pid; then
+            create_shutdown_flag
+            print_success "🎮 ARK server has been forcefully stopped"
+            exit 0
+        else
+            print_error "❌ Failed to force kill the server"
+            exit 1
+        fi
     fi
-    
-    # Check for connected players (unless force flag is set)
-    if ! check_player_count $force_flag; then
+
+    # Check for connected players
+    if ! check_connected_players "$FORCE_FLAG"; then
         exit 1
     fi
-    
-    # First try to save the world
-    save_world
-    
+
+    # If countdown is enabled, perform countdown with notifications
+    if [[ "$COUNTDOWN" == "yes" ]]; then
+        perform_countdown $COUNTDOWN_MINUTES $IS_RESTART
+    fi
+
+    # Save world data
+    if ! save_world_data "$FORCE_FLAG"; then
+        exit 1
+    fi
+
+    # If save-only mode, exit here
+    if [[ "$SAVE_ONLY" == "yes" ]]; then
+        print_success "✅ World saved successfully, not stopping server (--save-only was specified)"
+        exit 0
+    fi
+
+    # Create a shutdown flag file to indicate shutdown is in progress
+    create_shutdown_flag
+
     # Send shutdown command
     if send_shutdown_command; then
         # Wait for server to shut down gracefully
-        if wait_for_server_shutdown $server_pid; then
+        if wait_for_server_shutdown $ark_server_pid; then
+            cleanup_processes
             print_success "🎮 ARK server has been gracefully stopped"
             exit 0
         else
             # If graceful shutdown times out, ask for force kill
             print_warning "⚠️ Server did not respond to shutdown command within timeout period"
-            
-            if [[ "$force_flag" == "--force" ]]; then
-                force_shutdown $server_pid
-                exit $?
+
+            echo ""
+            print_info "Would you like to force kill the server? [y/N]"
+            read -n 1 -r
+            echo ""
+
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                if force_shutdown $ark_server_pid; then
+                    cleanup_processes
+                    print_success "🎮 ARK server has been forcefully stopped"
+                    exit 0
+                else
+                    print_error "❌ Failed to force kill the server"
+                    exit 1
+                fi
             else
-                echo ""
-                print_info "To force kill the server, run: $(basename $0) --force"
+                print_warning "⚠️ Server shutdown aborted by user"
                 exit 1
             fi
         fi
     else
         # If shutdown command fails, offer force kill option
-        if [[ "$force_flag" == "--force" ]]; then
-            force_shutdown $server_pid
-            exit $?
+        echo ""
+        print_info "Would you like to force kill the server? [y/N]"
+        read -n 1 -r
+        echo ""
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if force_shutdown $ark_server_pid; then
+                cleanup_processes
+                print_success "🎮 ARK server has been forcefully stopped"
+                exit 0
+            else
+                print_error "❌ Failed to force kill the server"
+                exit 1
+            fi
         else
-            echo ""
-            print_info "To force kill the server, run: $(basename $0) --force"
+            print_warning "⚠️ Server shutdown aborted by user"
             exit 1
         fi
     fi
 }
 
 # Execute the main function with all arguments
-main "$@" 
+main "$@"

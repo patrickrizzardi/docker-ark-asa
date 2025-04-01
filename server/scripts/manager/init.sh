@@ -14,7 +14,6 @@ chmod +x ${UTILS_PATH}/*.sh 2>/dev/null || true
 
 # Load utilities with absolute paths
 source "${UTILS_PATH}/colorPrinter.sh"
-source "${UTILS_PATH}/serverManager.sh"
 source "${UTILS_PATH}/apiManager.sh"
 source "${UTILS_PATH}/logManager.sh"
 source "${UTILS_PATH}/envManager.sh"
@@ -33,32 +32,32 @@ process_command_line_args() {
 # Main execution function
 main() {
     print_header "🚀 Starting ARK Server Container"
-    
+
     # If command is provided, run it and exit
     if process_command_line_args "$@"; then
         print_success "Command executed successfully, exiting"
         exit 0
     fi
-    
+
     # Setup graceful shutdown handlers
     print_info "Setting up shutdown handlers..."
     setup_shutdown_handlers
-    
+
     # Update ARK Server
     print_info "Checking for ARK server updates..."
-    update_ark_server
-    
+    "${MANAGER_DIR}/update.sh"
+
     # Check and update server API
     print_info "Checking server API status..."
     check_and_update_server_api
-    
+
     # Install or update plugins
     print_info "Checking plugins..."
     install_plugins "$ARK_DIR"
-    
+
     print_header "✅ Server initialization complete"
     print_info "--------------------------- Server is ready. Use 'manager' command to manage the server. ---------------------------"
-    
+
     # Start tail logs
     print_info "Starting log monitoring..."
     tail_logs
@@ -68,4 +67,4 @@ main() {
 main "$@" || {
     print_error "❌ Error during server startup: $?"
     exit 1
-} 
+}

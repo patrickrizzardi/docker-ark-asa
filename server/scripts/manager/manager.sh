@@ -254,13 +254,13 @@ stop() {
     if [[ "$1" == "--force" || "$1" == "--saveworld" ]]; then
         force_flag="--force"
     fi
-    
+
     echo -e "${green_text}Stopping ARK server${color_reset}"
     echo "-------- STOPPING SERVER --------" >>"$LOG_FILE"
-    
+
     # Use the dedicated stop script
     ${MANAGER_DIR}/stop.sh $force_flag
-    
+
     local res=$?
     if [[ $res -eq 0 ]]; then
         echo -e "${green_text}Server stopped successfully${color_reset}"

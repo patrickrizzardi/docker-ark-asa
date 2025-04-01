@@ -11,9 +11,16 @@ ENV ASA_APPID 2430930
 ENV SERVER_SHUTDOWN_TIMEOUT 30
 ENV USER_SCRIPTS /home/${USER}/.local/bin
 
+# Monitor variables
+ENV INITIAL_STARTUP_DELAY 120
+ENV CHECK_INTERVAL 30
+ENV RESTART_WAIT 60
+
+# Steam variables
 ENV STEAM_DIR /steam
 ENV MANAGER_DIR /manager
 
+# ARK variables
 ENV ARK_DIR ${STEAM_DIR}/steamapps/common/asa-server
 
 # Backup variables
@@ -37,6 +44,7 @@ ENV LOG_FILE ${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log
 ENV GAME_LOG_FILE ${ARK_DIR}/ShooterGame/Saved/Logs/ServerGame.*.log
 ENV API_LOG_FILE ${ARK_DIR}/ShooterGame/Binaries/Win64/logs/ArkApi_*.log
 ENV WINE_LOG_FILE ${ARK_DIR}/ShooterGame/Binaries/Win64/logs/wine.log
+ENV MONITOR_LOG ${ARK_DIR}/logs/server_monitor.log
 
 # Because steam is a 32 bit app, we need to add the i386 architecture
 RUN set -ex; \
