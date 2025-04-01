@@ -56,7 +56,8 @@ main() {
     install_plugins "$ARK_DIR"
 
     print_header "✅ Server initialization complete"
-    print_info "--------------------------- Server is ready. Use 'manager' command to manage the server. ---------------------------"
+    print_info "Starting server..."
+    "${MANAGER_DIR}/start.sh"
 
     # Start tail logs
     print_info "Starting log monitoring..."
