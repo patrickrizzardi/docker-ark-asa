@@ -41,16 +41,6 @@ if [ "$1" ]; then
   exit $?
 fi
 
-# Start the server monitor in the background
-echo "🔍 Starting server monitor..."
-
-# Use monitorManager to start the monitor
-if "${MANAGER_DIR}/monitorManager.sh" start; then
-  echo "✅ Server monitor started successfully"
-else
-  echo "⚠️ Warning: Failed to start server monitor - server will run without monitoring"
-fi
-
 # Execute the init.sh script directly from its location
 echo "🚀 Initializing ARK server..."
 cd "${MANAGER_DIR}"

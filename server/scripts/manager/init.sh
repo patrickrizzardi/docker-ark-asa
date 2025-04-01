@@ -59,6 +59,10 @@ main() {
     print_info "Starting server..."
     "${MANAGER_DIR}/start.sh"
 
+    # Start the server monitor in the background
+    echo "🔍 Starting server monitor..."
+    "${MANAGER_DIR}/monitorManager.sh" start
+
     # Start tail logs
     print_info "Starting log monitoring..."
     tail_logs

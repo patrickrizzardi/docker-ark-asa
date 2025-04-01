@@ -101,12 +101,12 @@ format_label_value() {
 get_listening_port() {
     # Get ARK server PID using the utility function
     local ark_pid=$(get_ark_server_pid)
-    
+
     if [[ "$ark_pid" == "0" ]]; then
         # No ARK process found
         return 1
     fi
-    
+
     # Look for connections on SERVER_PORT or any port if SERVER_PORT is not specified
     if [[ -n "$SERVER_PORT" ]]; then
         # Look specifically for the configured server port
@@ -123,14 +123,14 @@ get_listening_port() {
             return 0
         fi
     fi
-    
+
     # Try to find the port by looking at UDP connections, as ARK server uses UDP
     local udp_port=$(ss -uplna | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
     if [[ -n "$udp_port" ]]; then
         echo "$udp_port"
         return 0
     fi
-    
+
     # As a last resort, check for any port close to the configured SERVER_PORT
     if [[ -n "$SERVER_PORT" ]]; then
         # Check if any process is listening on the expected port
@@ -140,7 +140,7 @@ get_listening_port() {
             return 0
         fi
     fi
-    
+
     # No port found
     return 1
 }
