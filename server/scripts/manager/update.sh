@@ -394,7 +394,7 @@ trap cleanup EXIT INT TERM
 # Parse command line arguments
 parse_arguments() {
     FORCE_FLAG=""
-    RESTART_SERVER="yes"
+    RESTART_SERVER="no"
     SERVER_TYPE="server"
 
     for arg in "$@"; do
