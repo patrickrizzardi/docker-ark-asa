@@ -230,7 +230,7 @@ start() {
         echo "-------- STARTING SERVER --------" >>"$LOG_FILE"
 
         # Start server in the background + nohup and save PID
-        nohup ${MANAGER_DIR}/manager_server_start.sh >/dev/null 2>&1 &
+        nohup ${MANAGER_DIR}/start.sh server >/dev/null 2>&1 &
         sleep 3
         echo -e "${green_text}Server should be up in a few minutes${color_reset}"
     fi
@@ -239,7 +239,7 @@ start() {
         echo -e "${green_text}Starting API server on port ${SERVER_PORT}${color_reset}"
         echo "-------- STARTING API SERVER --------" >>"$LOG_FILE"
 
-        nohup ${MANAGER_DIR}/manager_server_api_start.sh >/dev/null 2>&1 &
+        nohup ${MANAGER_DIR}/start.sh api >/dev/null 2>&1 &
         sleep 3
         echo -e "${green_text}API server should be up in a few minutes${color_reset}"
     fi
@@ -250,58 +250,23 @@ start() {
 }
 
 stop() {
-    # Get server pid
-    ark_pid=$(get_and_check_pid)
-    if [[ "$ark_pid" == 0 ]]; then
-        echo -e "${red_text}Server PID not found (server offline?)${color_reset}"
-        return
+    local force_flag=""
+    if [[ "$1" == "--force" || "$1" == "--saveworld" ]]; then
+        force_flag="--force"
     fi
-
-    # Check number of players
-    out=$(${RCON_CMDLINE[@]} listplayers 2>/dev/null)
-    res=$?
-    if ([[ $res == 0 ]] && [[ "$out" != "No Players"* ]]); then
-        num_players=$(echo "$out" | wc -l)
-        if [[ "$num_players" -gt 0 ]]; then
-            echo -e "${red_text}Server is still running with $num_players players${color_reset}"
-            echo "Please disconnect all players before stopping the server."
-            return
-        fi
-    else
-        gracefulStop
-    fi
-
-    echo "-------- SERVER STOPPED --------" >>"$LOG_FILE"
-}
-
-gracefulStop() {
-    ark_pid=$(get_and_check_pid)
-    echo -e "${green_text}Server is running, stopping server gracefully...${color_reset}"
+    
+    echo -e "${green_text}Stopping ARK server${color_reset}"
     echo "-------- STOPPING SERVER --------" >>"$LOG_FILE"
-
-    saveworld
-
-    out=$(${RCON_CMDLINE[@]} DoExit 2>/dev/null)
-    res=$?
-    if [[ $res == 0 && "$out" == "Exiting..." ]]; then
-        echo -e "${green_text}success!${color_reset}"
-        echo -e "${green_text}Waiting ${blue_text}${SERVER_SHUTDOWN_TIMEOUT}s ${green_text}for the server to stop...${color_reset}"
-        timeout $SERVER_SHUTDOWN_TIMEOUT tail --pid=$ark_pid -f /dev/null
-        res=$?
-
-        # Timeout occurred, force shutdown
-        if [[ "$res" == 124 ]]; then
-            echo "Server still running after $SERVER_SHUTDOWN_TIMEOUT seconds"
-            forceShutdown
-        fi
+    
+    # Use the dedicated stop script
+    ${MANAGER_DIR}/stop.sh $force_flag
+    
+    local res=$?
+    if [[ $res -eq 0 ]]; then
+        echo -e "${green_text}Server stopped successfully${color_reset}"
+    else
+        echo -e "${red_text}Failed to stop server normally${color_reset}"
     fi
-}
-
-forceShutdown() {
-    ark_pid=$(get_and_check_pid)
-    echo -e "${red_text}Forcing server to stop...${color_reset}"
-
-    kill $ark_pid
 }
 
 restart() {
@@ -310,6 +275,7 @@ restart() {
     if [[ -n "$ark_pid" ]]; then
         echo -e "${green_text}Restarting server on port ${SERVER_PORT}${color_reset}"
         stop "$1"
+        sleep 5 # Give the server time to fully stop
         start "start"
     fi
 
@@ -318,12 +284,12 @@ restart() {
     if [[ -n "$ark_pid" ]]; then
         echo "Restarting ASA API on port ${SERVER_PORT}"
         stop "$1"
+        sleep 5 # Give the server time to fully stop
         start "startApi"
     fi
 
     # If no server is running, we need to start the server we can just run the start command
     start
-
 }
 
 saveworld() {

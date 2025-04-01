@@ -1,5 +1,4 @@
-node_modules
 backups
-dist
 logs
 Saved
+.eos.config

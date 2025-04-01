@@ -57,17 +57,18 @@ services:
       context: ./server
       dockerfile: Dockerfile
     volumes:
+      # Server files
       - ./server/Saved:/steam/steamapps/common/asa-server
+
+      # Logs
       - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
       - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
+
+      # Backups
       - ./server/backups/the-island:/backups
 
       # For dev purposes
-      - ./server/scripts:/manager/scripts
-      - ./server/tsconfig.json:/manager/tsconfig.json
-      - ./server/package.json:/manager/package.json
-      - ./server/bun.lock:/manager/bun.lock
-      - ./server/node_modules:/manager/node_modules    
+      - ./server/scripts/manager:/manager 
     ports:
       - 7777:7777/udp
       - 7778:7778/udp

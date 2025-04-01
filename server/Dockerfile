@@ -3,21 +3,17 @@ FROM ubuntu:22.04
 # Args
 ARG BUN_VERSION=1.2.7
 
-# User variables
+# Env variables
 ENV USER arkuser
 ENV UID 1000
 ENV GID 1000
+ENV ASA_APPID 2430930
+ENV SERVER_SHUTDOWN_TIMEOUT 30
 ENV USER_SCRIPTS /home/${USER}/.local/bin
 
-# Steam variables
 ENV STEAM_DIR /steam
-
-# Manager variables
 ENV MANAGER_DIR /manager
 
-# Server variables
-ENV SERVER_SHUTDOWN_TIMEOUT 30
-ENV ASA_APPID 2430930
 ENV ARK_DIR ${STEAM_DIR}/steamapps/common/asa-server
 
 # Backup variables
@@ -28,6 +24,13 @@ ENV MAX_BACKUPS 10
 ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_DIR}
 ENV STEAM_COMPAT_DATA_PATH ${STEAM_DIR}/steamapps/compatdata/${ASA_APPID}
 ENV WINEDEBUG -all
+ENV WINEARCH win64
+ENV WINEPREFIX ${STEAM_COMPAT_DATA_PATH}/pfx
+ENV DISPLAY :99
+# This is required for wine to work and allows us to run this along side bun which is our server manager and entrypoint
+ENV XDG_RUNTIME_DIR /tmp
+# Add user local bin to PATH for rcon
+ENV PATH="/home/${USER}/.local/bin:${PATH}"
 
 # Log and pid file locations.
 ENV LOG_FILE ${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log
@@ -40,9 +43,11 @@ RUN set -ex; \
     dpkg --add-architecture i386
 
 # Install the required packages
+# Start of Selection
 RUN set -ex; \
     apt update; \
     apt install -y --no-install-recommends \
+    # General utilities
     wget \
     curl \
     jq \
@@ -51,10 +56,23 @@ RUN set -ex; \
     procps \
     software-properties-common \
     dbus \
+    # Wine dependencies
     lib32gcc-s1 \
+    lib32stdc++6 \
+    libasound2 \
+    libc6-i386 \
+    libpulse0 \
+    xvfb \
     vim \
     unzip \
-    winetricks;
+    winetricks \
+    # Additional dependencies to fix Wine issues
+    libgcc-11-dev \
+    gcc-multilib \
+    g++-multilib \
+    libncurses5:i386 \
+    libncurses6:i386;
+# End of Selection
 
 # Add the winehq repository and install
 RUN set -ex; \
@@ -63,6 +81,12 @@ RUN set -ex; \
     wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources; \
     apt update; \
     apt install -y --install-recommends winehq-stable
+
+# Set up wine environment properly
+RUN set -ex; \
+    apt-get -y install cabextract; \
+    wget -q -O /usr/bin/winetricks https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks; \
+    chmod +x /usr/bin/winetricks;
 
 # Install Cleanup
 RUN set -ex; \
@@ -83,7 +107,14 @@ RUN set -ex; \
 
 # Create the required directories and set the permissions
 RUN set -ex; mkdir -p ${USER_SCRIPTS} ${ARK_DIR} ${MANAGER_DIR} ${STEAM_DIR} ${STEAM_COMPAT_DATA_PATH} ${BACKUP_PATH}
-RUN set -ex; chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} ${BACKUP_PATH}
+RUN set -ex; mkdir -p ${WINEPREFIX} /tmp/.X11-unix
+RUN set -ex; chmod 1777 /tmp /tmp/.X11-unix
+# Give the user proper permissions for Wine to run
+RUN set -ex; touch /etc/fstab
+RUN set -ex; chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} ${BACKUP_PATH} ${WINEPREFIX}
+# Ensure log directories exist with correct permissions
+RUN set -ex; mkdir -p ${ARK_DIR}/ShooterGame/Saved/Logs ${ARK_DIR}/ShooterGame/Binaries/Win64/logs
+RUN set -ex; chown -R ${USER}:${USER} ${ARK_DIR}
 
 # Switch to the ark user so that the server files are owned by the ark user
 USER ${USER}
@@ -92,14 +123,6 @@ USER ${USER}
 RUN set -ex; echo "alias ll='ls -alF'" >> /home/${USER}/.bashrc
 RUN set -ex; echo "export PATH='$PATH:/home/${USER}/.local/bin'" >> /home/${USER}/.bashrc
 RUN set -ex; echo "alias ark='tail -f ${LOG_FILE} ${API_LOG_FILE}'" >> /home/${USER}/.bashrc
-
-# Install bun
-RUN set -ex; \
-    curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"; \
-    echo 'export PATH="/home/${USER}/.bun/bin:$PATH"' >> /home/${USER}/.bashrc
-
-# Set the path for bun so that it can be used from this point onwards
-ENV PATH="/home/${USER}/.bun/bin:${PATH}"
 
 # Download steamcmd
 WORKDIR ${STEAM_DIR}
@@ -113,25 +136,18 @@ RUN set -ex; \
     curl -sSL https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz > rcon.tar.gz; \
     tar xvf rcon.tar.gz; \
     mv rcon-0.10.3-amd64_linux/rcon ${USER_SCRIPTS}/rcon; \
-    rm -rf rcon.tar.gz rcon-0.10.3-amd64_linux
+    rm -rf rcon.tar.gz rcon-0.10.3-amd64_linux; \
+    # Add rcon to PATH
+    echo 'export PATH="$PATH:/home/arkuser/.local/bin"' >> /home/arkuser/.bashrc; \
+    chmod +x ${USER_SCRIPTS}/rcon
 
 # Copy scripts to run the server
-COPY --chown=${USER} --chmod=755 ./scripts ${MANAGER_DIR}/scripts
-COPY --chown=${USER} --chmod=755 ./tsconfig.json ${MANAGER_DIR}/tsconfig.json
-COPY --chown=${USER} --chmod=755 ./package.json ${MANAGER_DIR}/package.json
-COPY --chown=${USER} --chmod=755 ./bun.lock ${MANAGER_DIR}/bun.lock
+COPY --chown=${USER} --chmod=755 ./scripts/manager ${MANAGER_DIR}
 
-# Install dependencies
-RUN set -ex; \
-    cd ${MANAGER_DIR}; \
-    bun install --frozen-lockfile
-
-
-# Create an alias for the manager script
-RUN set -ex; \
-    echo "alias manager='bun run ${MANAGER_DIR}/scripts/manager/manager.ts'" >> /home/${USER}/.bashrc
+# Copy the entrypoint script
+COPY --chown=${USER} --chmod=755 ./scripts/entrypoint.sh /entrypoint.sh
 
 USER ${USER}
 
 WORKDIR ${MANAGER_DIR}
-ENTRYPOINT ["bun", "run", "scripts/entrypoint/index.ts"]
+ENTRYPOINT ["/entrypoint.sh"]
