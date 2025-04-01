@@ -97,6 +97,54 @@ format_label_value() {
     fi
 }
 
+# Function to get the server's listening port
+get_listening_port() {
+    # Get ARK server PID using the utility function
+    local ark_pid=$(get_ark_server_pid)
+    
+    if [[ "$ark_pid" == "0" ]]; then
+        # No ARK process found
+        return 1
+    fi
+    
+    # Look for connections on SERVER_PORT or any port if SERVER_PORT is not specified
+    if [[ -n "$SERVER_PORT" ]]; then
+        # Look specifically for the configured server port
+        local port_info=$(ss -tupln | grep -E "$ark_pid.*:$SERVER_PORT" | head -1)
+        if [[ -n "$port_info" ]]; then
+            echo "$SERVER_PORT"
+            return 0
+        fi
+    else
+        # No specific server port configured, get the first port this process listens on
+        local listening_ports=$(ss -tupln | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
+        if [[ -n "$listening_ports" ]]; then
+            echo "$listening_ports"
+            return 0
+        fi
+    fi
+    
+    # Try to find the port by looking at UDP connections, as ARK server uses UDP
+    local udp_port=$(ss -uplna | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
+    if [[ -n "$udp_port" ]]; then
+        echo "$udp_port"
+        return 0
+    fi
+    
+    # As a last resort, check for any port close to the configured SERVER_PORT
+    if [[ -n "$SERVER_PORT" ]]; then
+        # Check if any process is listening on the expected port
+        local any_process_port=$(ss -tupln | grep ":$SERVER_PORT" | grep -oP '(?<=:)\d+')
+        if [[ -n "$any_process_port" ]]; then
+            echo "$any_process_port"
+            return 0
+        fi
+    fi
+    
+    # No port found
+    return 1
+}
+
 # =============================================================================
 # BASIC STATUS FUNCTIONS
 # =============================================================================
@@ -118,8 +166,15 @@ get_basic_status() {
     # Server is running, show process info
     format_label_value "Process ID:" "$ark_pid"
 
+    # Show server type (API or regular)
+    local server_type="Game Server"
+    if ps -p "$ark_pid" -o cmd= | grep -q "AsaApiLoader"; then
+        server_type="API Server"
+    fi
+    format_label_value "Server Type:" "$server_type"
+
     # Check if server is listening on the port
-    local listening_port=$(ss -tupln | grep "GameThread" | grep -oP '(?<=:)\d+')
+    local listening_port=$(get_listening_port)
     if [[ -z "$listening_port" ]]; then
         format_label_value "Network Status:" "$(print_status_box "NOT LISTENING" "yellow")"
         format_label_value "Expected Port:" "$SERVER_PORT"
