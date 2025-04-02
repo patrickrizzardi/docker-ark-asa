@@ -11,7 +11,7 @@ setup_shutdown_handlers() {
     # Function to handle shutdown signals
     shutdown_handler() {
         print_info "Received shutdown signal. Stopping server..."
-        manager stop --saveworld
+        "${MANAGER_DIR}/stop.sh"
         exit 0
     }
 

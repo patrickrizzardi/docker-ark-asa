@@ -85,19 +85,31 @@ get_current_build_id() {
         fi
     fi
 
-    # Run SteamCMD to get the current build ID
+    # Run SteamCMD to get the current build ID with improved extraction
     print_info "Querying SteamCMD for current build ID..."
-    local build_id=$(${STEAM_DIR}/steamcmd.sh +login anonymous +app_info_update 1 +app_info_print ${ASA_APPID} +quit | grep -A 2000 '"public"' | grep -A 5 '"branches"' | grep -A 5 '"public"' | grep -m 1 -oP '"buildid"\s*:\s*"\K[^"]+')
+    local steamcmd_output=$(${STEAM_DIR}/steamcmd.sh +login anonymous +app_info_print ${ASA_APPID} +quit 2>/dev/null)
+
+    # More precise extraction to avoid multiple matches
+    # 1. Find the "branches" section
+    # 2. Extract only the "public" branch section
+    # 3. Look for buildid within that specific section
+    # 4. Take only the first match and trim whitespace
+    local build_id=$(echo "$steamcmd_output" |
+        grep -A 150 "\"branches\"" |
+        grep -A 50 "\"public\"" |
+        grep -m 1 -oP "\"buildid\"\s*\"*\K[0-9]+" |
+        head -n 1 |
+        tr -d '[:space:]')
 
     if [[ -z "$build_id" ]]; then
-        print_warning "⚠️ Failed to get build ID from SteamCMD"
+        print_error "❌ Could not retrieve build ID from SteamCMD. Please check SteamCMD connection."
         echo "unknown"
         return 1
     fi
 
-    # Validate build ID format (should be numeric)
+    # Final sanity check - ensure it only contains digits
     if ! [[ "$build_id" =~ ^[0-9]+$ ]]; then
-        print_warning "⚠️ Invalid build ID format: $build_id"
+        print_error "❌ Invalid build ID format: '$build_id'"
         echo "invalid"
         return 1
     fi
