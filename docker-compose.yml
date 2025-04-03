@@ -51,7 +51,7 @@ services:
   #     - ark
 
   island:
-    # Enable color output in logs  
+    # Enable color output in logs
     tty: true
     build:
       context: ./server
@@ -79,32 +79,32 @@ services:
     networks:
       - ark
     # Increase default grace period to ensure clean shutdown
-    stop_grace_period: 30s    
+    stop_grace_period: 30s
     # environment:
-      # API: true
-      # SERVER_MAP: TheIsland_WP
-      # SESSION_NAME: 'PvP - YINZERS - The Island'
-      # SERVER_PORT: 7777
-      # RAW_PORT: 7778
-      # QUERY_PORT: 27015
-      # MAX_PLAYERS: 70
-      # SERVER_SHUTDOWN_TIMEOUT: 30
-      # ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      # CLUSTER: 'yinzers'
+    # API: true
+    # SERVER_MAP: TheIsland_WP
+    # SESSION_NAME: 'PvP - YINZERS - The Island'
+    # SERVER_PORT: 7777
+    # RAW_PORT: 7778
+    # QUERY_PORT: 27015
+    # MAX_PLAYERS: 70
+    # SERVER_SHUTDOWN_TIMEOUT: 30
+    # ARK_ADMIN_PASSWORD: ab89EBHAEh5b
+    # CLUSTER: 'yinzers'
 
-      # If you disable RCON, the builtin manager won't work
-      # RCON_PORT: 27020
-      # BATTLEYE: 'True'
+    # If you disable RCON, the builtin manager won't work
+    # RCON_PORT: 27020
+    # BATTLEYE: 'True'
 
-      # Extra arguments
-      # ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      # ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      # EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
-      # MODS: '936660'
-    deploy:
-      resources:
-        limits:
-          memory: 12g
+    # Extra arguments
+    # ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
+    # ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
+    # EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
+    # MODS: '936660'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 12g
 
   # scorched-earth:
   #   build:
@@ -296,10 +296,10 @@ services:
   #     start_period: 5s
   #   volumes:
   #     - /var/lib/mysql
-    # ports:
-    #   - 3306:3306
-    # networks:
-    #   - ark
+  # ports:
+  #   - 3306:3306
+  # networks:
+  #   - ark
 
   # redis:
   #   image: redis:alpine

@@ -6,78 +6,76 @@
 # Usage: ./start.sh [options]
 # Options:
 #   server|api           Specify server type to start (default: server)
-#   --force-restart      Force restart if server is already running
-#   --show-status        Show server status after starting
-#   --skip-checks        Skip environment checks
 #   --help               Display this help message
 #
 # =============================================================================
 
 # Load environment variables and utilities
 UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/colorPrinter.sh"
-source "${UTILS_PATH}/processManager.sh"
-source "${UTILS_PATH}/envManager.sh"
+source "${UTILS_PATH}/common.sh"
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
 # Define required and optional environment variables for server start
-declare -a START_REQUIRED_VARS=(
+declare -a REQUIRED_VARS=(
     "ARK_DIR"                # ARK installation directory
-    "SERVER_MAP"             # Map to run
-    "SESSION_NAME"           # Server session name
-    "SERVER_PORT"            # Server port
-    "WINE_LOG_FILE"          # Wine log file location
     "STEAM_COMPAT_DATA_PATH" # Steam compatibility data path
+    "WINE_LOG_FILE"          # Wine log file location
+
 )
 
 # Define optional environment variables with default values
-declare -a START_OPTIONAL_VARS=(
-    "MAX_PLAYERS"         # Maximum number of players
-    "SERVER_PASSWORD"     # Server password
-    "ARK_ADMIN_PASSWORD"  # Admin password
-    "RCON_PORT"           # RCON port
-    "QUERY_PORT"          # Query port
-    "MODS"                # Mods to load
-    "BATTLEYE"            # BattlEye anti-cheat
-    "CLUSTER"             # Cluster ID
-    "EVENT"               # Active event
-    "ARK_EXTRA_OPTS"      # Extra server options
-    "ARK_EXTRA_DASH_OPTS" # Extra dash options
-    "STARTUP_TIMEOUT"     # Timeout for server startup
-    "STARTUP_WAIT"        # Time to wait for server to initialize
-    "API"                 # API server
+declare -a OPTIONAL_VARS=(
+    "SERVER_MAP"                  # Map to run
+    "SERVER_SESSION_NAME"         # Server session name
+    "SERVER_PASSWORD"             # Server password
+    "SERVER_ADMIN_PASSWORD"       # Admin password
+    "SERVER_CLUSTER_ID"           # Cluster ID
+    "NETWORK_SERVER_PORT"         # Server port
+    "NETWORK_QUERY_PORT"          # Query port
+    "NETWORK_RCON_PORT"           # RCON port
+    "GAMEPLAY_MAX_PLAYERS"        # Maximum number of players
+    "GAMEPLAY_BATTLEYE"           # BattlEye anti-cheat
+    "GAMEPLAY_MODS"               # Mods to load
+    "GAMEPLAY_EXTRA_OPTIONS"      # Extra server options
+    "GAMEPLAY_EXTRA_DASH_OPTIONS" # Extra dash options
+    "SYSTEM_STARTUP_TIMEOUT"      # Timeout for server startup before it is considered failed
+    "SYSTEM_STARTUP_WAIT"         # Time to wait for server to initialize before starting the countdown to check if the server is running
+    "API_ENABLED"                 # API server enabled
+    "API_PLUGINS"                 # API plugins
 )
 
 # Set default values for optional variables
-STARTUP_TIMEOUT=${STARTUP_TIMEOUT:-300}             # 5 minutes timeout for server to start
-STARTUP_WAIT=${STARTUP_WAIT:-30}                    # 30 seconds initial wait for server to initialize
-SERVER_TYPE="${API,,}"                                # Set server type based on API variable, defaulting to "server" if not set or false
-if [[ "$SERVER_TYPE" != "true" ]]; then
-    SERVER_TYPE="server"
-else
-    SERVER_TYPE="api"
-fi
-SERVER_START_FLAG="${ARK_DIR}/server_starting.flag" # Flag file to indicate server is starting
+set_default_values() {
+    # Server variables
+    SERVER_MAP=${SERVER_MAP:-"TheIsland_WP"}
+    SERVER_SESSION_NAME=${SERVER_SESSION_NAME:-"ARK Server"}
+    SERVER_PASSWORD=${SERVER_PASSWORD:-""}
+    SERVER_ADMIN_PASSWORD=${SERVER_ADMIN_PASSWORD:-""}
 
+    # Network variables
+    NETWORK_SERVER_PORT=${NETWORK_SERVER_PORT:-7777}
+    NETWORK_QUERY_PORT=${NETWORK_QUERY_PORT:-27015}
+    NETWORK_RCON_PORT=${NETWORK_RCON_PORT:-27020}
+
+    # Gameplay variables
+    GAMEPLAY_MAX_PLAYERS=${GAMEPLAY_MAX_PLAYERS:-70}
+    GAMEPLAY_BATTLEYE=${GAMEPLAY_BATTLEYE:-"true"}
+
+    # System variables
+    SYSTEM_STARTUP_TIMEOUT=${SYSTEM_STARTUP_TIMEOUT:-300}
+    SYSTEM_STARTUP_WAIT=${SYSTEM_STARTUP_WAIT:-60}
+
+    # API variables
+    API_ENABLED=${API_ENABLED:-"false"}
+    API_PLUGINS=${API_PLUGINS:-""}
+}
 
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
-
-# Function to display a spinner with a message
-declare -a SPINNER=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-SPINNER_IDX=0
-
-show_spinner() {
-    local message="$1"
-    local current_spinner=${SPINNER[$SPINNER_IDX]}
-    SPINNER_IDX=$(((SPINNER_IDX + 1) % ${#SPINNER[@]}))
-
-    printf "\r${current_spinner} ${message}"
-}
 
 # Function to create server start flag file
 create_start_flag() {
@@ -108,7 +106,7 @@ verify_server_started() {
             # Check if the server is actually responsive using RCON
             if [[ -n "$RCON_PORT" && -n "$ARK_ADMIN_PASSWORD" ]]; then
                 show_spinner "Checking server responsiveness via RCON... (${elapsed}s/${timeout}s)"
-                local rcon_output=$(./rcon.sh "info" --silent 2>&1)
+                local rcon_output=$(ark rcon info --silent 2>&1)
                 local rcon_status=$?
 
                 if [[ $rcon_status -eq 0 && "$rcon_output" != *"RCON_TIMEOUT"* && "$rcon_output" != *"RCON_FAILED"* ]]; then
@@ -175,10 +173,10 @@ check_logs_for_errors() {
         fi
 
         return 1
-    else
-        print_success "✅ No major errors found in logs"
-        return 0
     fi
+
+    print_success "✅ No major errors found in logs"
+    return 0
 }
 
 # Function for cleanup on script exit
@@ -200,36 +198,16 @@ cleanup() {
 prepare_environment() {
     print_header "🔧 Preparing Environment"
 
-    # Don't use eval to modify the STEAM_COMPAT_DATA_PATH as it's already set in Dockerfile
-    # Just create the prefix directory if it doesn't exist
-    mkdir -p "${WINEPREFIX}" 2>/dev/null || true
-
-    # Create necessary log directories
-    local log_dir=$(dirname "${WINE_LOG_FILE}")
-    if [ ! -d "$log_dir" ]; then
-        print_info "Creating log directory: $log_dir"
-        mkdir -p "$log_dir" 2>/dev/null || true
-
-        if [ ! -d "$log_dir" ]; then
-            print_error "❌ Failed to create log directory: $log_dir"
-            return 1
-        fi
-    fi
-
     # Verify the Wine environment is set correctly
     print_info "Verifying Wine environment..."
     if [ -z "$WINEARCH" ]; then
         export WINEARCH=win64
         print_warning "⚠️ WINEARCH not set, defaulting to $WINEARCH"
-    else
-        print_info "WINEARCH=${WINEARCH}"
     fi
 
     if [ -z "$WINEPREFIX" ]; then
         export WINEPREFIX="${STEAM_COMPAT_DATA_PATH}/pfx"
         print_warning "⚠️ WINEPREFIX not set, defaulting to $WINEPREFIX"
-    else
-        print_info "WINEPREFIX=${WINEPREFIX}"
     fi
 
     # Verify display is working
@@ -237,8 +215,6 @@ prepare_environment() {
     if [ -z "$DISPLAY" ]; then
         export DISPLAY=:99
         print_warning "⚠️ DISPLAY not set, defaulting to $DISPLAY"
-    else
-        print_info "DISPLAY=${DISPLAY}"
     fi
 
     # Make sure server directory exists
@@ -286,46 +262,46 @@ start_server() {
     create_start_flag
 
     # Build the command string with server parameters
-    local cmd="${SERVER_MAP}?listen?SessionName=${SESSION_NAME}?Port=${SERVER_PORT}"
+    local cmd="${SERVER_MAP}?listen?SessionName=${SERVER_SESSION_NAME}?Port=${NETWORK_SERVER_PORT}"
 
     # Add optional parameters if they are set
-    if [ -n "${MAX_PLAYERS}" ]; then
-        cmd="${cmd}?MaxPlayers=${MAX_PLAYERS}"
+    if [ -n "${GAMEPLAY_MAX_PLAYERS}" ]; then
+        cmd="${cmd}?MaxPlayers=${GAMEPLAY_MAX_PLAYERS}"
     fi
 
     if [ -n "${SERVER_PASSWORD}" ]; then
         cmd="${cmd}?ServerPassword=${SERVER_PASSWORD}"
     fi
 
-    if [ -n "${ARK_ADMIN_PASSWORD}" ]; then
-        cmd="${cmd}?ServerAdminPassword=${ARK_ADMIN_PASSWORD}"
+    if [ -n "${SERVER_ADMIN_PASSWORD}" ]; then
+        cmd="${cmd}?ServerAdminPassword=${SERVER_ADMIN_PASSWORD}"
     fi
 
-    if [ -n "${RCON_PORT}" ]; then
-        cmd="${cmd}?RCONEnabled=True?RCONPort=${RCON_PORT}"
+    if [ -n "${NETWORK_RCON_PORT}" ]; then
+        cmd="${cmd}?RCONEnabled=True?RCONPort=${NETWORK_RCON_PORT}"
     fi
 
-    if [ -n "${QUERY_PORT}" ]; then
-        cmd="${cmd}?QueryPort=${QUERY_PORT}"
+    if [ -n "${NETWORK_QUERY_PORT}" ]; then
+        cmd="${cmd}?QueryPort=${NETWORK_QUERY_PORT}"
     fi
 
     # Add any extra options specified in the environment
-    cmd="${cmd}${ARK_EXTRA_OPTS}"
+    cmd="${cmd}${GAMEPLAY_EXTRA_OPTIONS}"
 
     # Add server dash options
     local flags=""
 
     # Add mods if specified
-    if [ -n "$MODS" ]; then
-        flags="${flags} -mods=${MODS}"
-        print_info "Loading mods: ${MODS}"
+    if [ -n "${GAMEPLAY_MODS}" ]; then
+        flags="${flags} -mods=${GAMEPLAY_MODS}"
+        print_info "Loading mods: ${GAMEPLAY_MODS}"
     fi
 
     # Add standard logging flags
     flags="${flags} -log -ServerRCONOutputTribeLogs -gameplaylogging -servergamelog -servergamelogincludetribelogs"
 
     # Configure BattlEye based on settings
-    if [ "${BATTLEYE}" = "True" ] || [ "${BATTLEYE}" = "1" ] || [ "${BATTLEYE}" = "true" ]; then
+    if [ "${GAMEPLAY_BATTLEYE}" = "True" ] || [ "${GAMEPLAY_BATTLEYE}" = "1" ] || [ "${GAMEPLAY_BATTLEYE}" = "true" ]; then
         flags="${flags} -UseBattlEye"
         print_info "BattlEye anti-cheat enabled"
     else
@@ -334,26 +310,18 @@ start_server() {
     fi
 
     # Configure max players for WinLive if specified
-    if [ -n "${MAX_PLAYERS}" ]; then
-        flags="${flags} -WinLiveMaxPlayers=${MAX_PLAYERS}"
+    if [ -n "${GAMEPLAY_MAX_PLAYERS}" ]; then
+        flags="${flags} -WinLiveMaxPlayers=${GAMEPLAY_MAX_PLAYERS}"
     fi
 
     # Add cluster ID if specified
-    if [ -n "${CLUSTER}" ]; then
-        flags="${flags} -clusterid=${CLUSTER}"
-        print_info "Using cluster ID: ${CLUSTER}"
-    fi
-
-    # Configure active event
-    if [ -n "${EVENT}" ]; then
-        flags="${flags} -ActiveEvent=${EVENT}"
-        print_info "Active event set to: ${EVENT}"
-    else
-        flags="${flags} -ActiveEvent=None"
+    if [ -n "${SERVER_CLUSTER_ID}" ]; then
+        flags="${flags} -clusterid=${SERVER_CLUSTER_ID}"
+        print_info "Using cluster ID: ${SERVER_CLUSTER_ID}"
     fi
 
     # Add any extra dash options
-    flags="${flags} ${ARK_EXTRA_DASH_OPTS}"
+    flags="${flags} ${GAMEPLAY_EXTRA_DASH_OPTIONS}"
 
     # Display the full command for debugging
     print_info "Full command line: wine64 \"${executable_path}\" \"${cmd}\" ${flags}"
@@ -377,13 +345,39 @@ start_server() {
         return 1
     fi
 
-    # Give it a moment to initialize and check for immediate errors
-    print_info "Giving server time to initialize (${STARTUP_WAIT}s)..."
+    # Wait for server initialization
+    if ! wait_for_initialization $wine_pid; then
+        return 1
+    fi
+
+    # Check logs for any errors
+    check_logs_for_errors "${WINE_LOG_FILE}" 100
+    # Note: We continue even if errors are found, as they might be non-fatal
+
+    # Verify server has actually started and is responsive
+    if ! verify_server_started $SYSTEM_STARTUP_TIMEOUT; then
+        print_error "❌ Server verification failed"
+        print_info "Last 20 lines of the log:"
+        tail -n 20 "${WINE_LOG_FILE}" 2>/dev/null || echo "Log file not available"
+        return 1
+    fi
+
+    print_success "✅ Server successfully started"
+    # Remove the starting flag as server is now running
+    remove_start_flag
+    return 0
+}
+
+# Wait for server to initialize
+wait_for_initialization() {
+    local wine_pid=$1
+    print_info "Giving server time to initialize (${SYSTEM_STARTUP_WAIT}s)..."
+
     local wait_time=0
     local check_interval=5
 
-    while [ $wait_time -lt $STARTUP_WAIT ]; do
-        show_spinner "Waiting for server initialization... (${wait_time}s/${STARTUP_WAIT}s)"
+    while [ $wait_time -lt $SYSTEM_STARTUP_WAIT ]; do
+        show_spinner "Waiting for server initialization... (${wait_time}s/${SYSTEM_STARTUP_WAIT}s)"
         sleep $check_interval
         wait_time=$((wait_time + check_interval))
 
@@ -398,24 +392,7 @@ start_server() {
     done
 
     echo "" # Add a newline after the spinner
-
-    # Check logs for any errors
-    if ! check_logs_for_errors "${WINE_LOG_FILE}" 100; then
-        print_warning "⚠️ Some issues were detected in logs, but server appears to be starting"
-    fi
-
-    # Verify server has actually started and is responsive
-    if verify_server_started $STARTUP_TIMEOUT; then
-        print_success "✅ Server successfully started"
-        # Remove the starting flag as server is now running
-        remove_start_flag
-        return 0
-    else
-        print_error "❌ Server verification failed"
-        print_info "Last 20 lines of the log:"
-        tail -n 20 "${WINE_LOG_FILE}" 2>/dev/null || echo "Log file not available"
-        return 1
-    fi
+    return 0
 }
 
 # =============================================================================
@@ -427,6 +404,8 @@ parse_arguments() {
     FORCE_RESTART="no"
     SHOW_STATUS="no"
     SKIP_CHECKS="no"
+    # Default to standard server if not specified
+    SERVER_TYPE="server"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -434,25 +413,10 @@ parse_arguments() {
             SERVER_TYPE="$1"
             shift
             ;;
-        --force-restart)
-            FORCE_RESTART="yes"
-            shift
-            ;;
-        --show-status)
-            SHOW_STATUS="yes"
-            shift
-            ;;
-        --skip-checks)
-            SKIP_CHECKS="yes"
-            shift
-            ;;
         --help)
             echo "Usage: ./start.sh [options]"
             echo "Options:"
             echo "  server|api           Specify server type to start (default: server)"
-            echo "  --force-restart      Force restart if server is already running"
-            echo "  --show-status        Show server status after starting"
-            echo "  --skip-checks        Skip environment checks"
             echo "  --help               Display this help message"
             exit 0
             ;;
@@ -464,6 +428,21 @@ parse_arguments() {
     done
 }
 
+# Check if server is already running
+check_server_running() {
+    print_info "Checking server status..."
+    local ark_server_pid=$(get_ark_server_pid)
+
+    if [[ "$ark_server_pid" == "0" ]]; then
+        print_info "No ARK server is currently running"
+        return 0
+    fi
+
+    print_warning "⚠️ ARK server is already running (PID: $ark_server_pid)"
+    print_info "Server is already running. Use \`ark restart\` to restart it."
+    return 1
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
@@ -473,26 +452,20 @@ trap cleanup EXIT INT TERM
 
 # Main function
 main() {
-    clear # Start with a clean screen
-    print_header "🎮 ARK Server Launcher"
-    echo ""
+    # Use common.sh function to print header
+    print_script_header "🎮 ARK Server Launcher"
 
     # Parse arguments
     parse_arguments "$@"
 
-    # Skip environment checks if requested
-    if [ "$SKIP_CHECKS" != "yes" ]; then
-        # Check required environment variables
-        if ! check_env_variables START_REQUIRED_VARS 0; then
-            print_error "❌ Missing required environment variables"
-            exit 1
-        fi
+    # Check required environment variables
+    check_required_env REQUIRED_VARS || exit 1
 
-        # Check optional environment variables
-        check_env_variables START_OPTIONAL_VARS 1
-    else
-        print_warning "⚠️ Skipping environment variable checks"
-    fi
+    # Check optional environment variables
+    check_optional_env OPTIONAL_VARS
+
+    # Set default values for optional variables
+    set_default_values
 
     # Display server type
     if [ "$SERVER_TYPE" = "api" ]; then
@@ -502,45 +475,7 @@ main() {
     fi
 
     # Check if the server is already running before starting
-    print_info "Checking server status..."
-    local ark_server_pid=$(get_ark_server_pid)
-
-    if [[ "$ark_server_pid" != "0" ]]; then
-        print_warning "⚠️ ARK server is already running (PID: $ark_server_pid)"
-
-        # Show additional information if the user wants to see status
-        if [[ "$SHOW_STATUS" == "yes" ]]; then
-            print_info "Server process information:"
-            ps -f -p "$ark_server_pid"
-
-            if [[ -n "$RCON_PORT" && -n "$ARK_ADMIN_PASSWORD" ]]; then
-                print_info "Server RCON information:"
-                ./rcon.sh "serverchat Server is running" --silent || print_warning "⚠️ RCON not responsive"
-            fi
-
-            # Show the server listen port
-            print_info "Server listening port information:"
-            ss -tuln | grep ":${SERVER_PORT}" || print_warning "⚠️ Server not listening on port ${SERVER_PORT}"
-
-            exit 0
-        fi
-
-        # Ask for confirmation before force restart
-        if [[ "$FORCE_RESTART" == "yes" ]]; then
-            print_warning "⚠️ Force restart requested - stopping existing server..."
-            if ! "${MANAGER_DIR}/stop.sh" --force; then
-                print_error "❌ Failed to stop existing server"
-                exit 1
-            fi
-            print_success "✅ Existing server stopped for restart"
-        else
-            print_info "Server is already running. Use --force-restart to stop and restart it."
-            print_info "Or use --show-status to see server status."
-            exit 0
-        fi
-    else
-        print_info "No ARK server is currently running"
-    fi
+    check_server_running || exit 1
 
     # Prepare environment
     if ! prepare_environment; then
@@ -549,26 +484,19 @@ main() {
     fi
 
     # Start server
-    if start_server "$SERVER_TYPE"; then
-        print_success "🎮 Server started successfully"
-        echo ""
-        print_info "The server will continue running in the background."
-        print_info "Log file: ${WINE_LOG_FILE}"
-
-        # Show status if requested
-        if [ "$SHOW_STATUS" = "yes" ]; then
-            print_info "Server status:"
-            "${MANAGER_DIR}/status.sh"
-        else
-            print_info "To check server status, use: ./status.sh"
-        fi
-
-        print_info "To stop the server, use: ./stop.sh"
-        print_info "You can safely exit this terminal session."
-    else
+    if ! start_server "$SERVER_TYPE"; then
         print_error "❌ Failed to start the server"
         exit 1
     fi
+
+    print_success "🎮 Server started successfully"
+    echo ""
+    print_info "The server will continue running in the background."
+    print_info "Log file: ${WINE_LOG_FILE}"
+
+    print_info "To check server status, use: \`ark status\`"
+    print_info "To stop the server, use: \`ark stop\`"
+    print_info "You can safely exit this terminal session."
 
     # Explicitly exit with success
     exit 0

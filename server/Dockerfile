@@ -37,7 +37,7 @@ ENV DISPLAY :99
 # This is required for wine to work and allows us to run this along side bun which is our server manager and entrypoint
 ENV XDG_RUNTIME_DIR /tmp
 # Add user local bin to PATH for rcon
-ENV PATH="/home/${USER}/.local/bin:${PATH}"
+ENV PATH="${USER_SCRIPTS}:${PATH}"
 
 # Log and pid file locations.
 ENV LOG_FILE ${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log
@@ -115,11 +115,11 @@ RUN set -ex; \
 
 # Create the required directories and set the permissions
 RUN set -ex; mkdir -p ${USER_SCRIPTS} ${ARK_DIR} ${MANAGER_DIR} ${STEAM_DIR} ${STEAM_COMPAT_DATA_PATH} ${BACKUP_PATH}
-RUN set -ex; mkdir -p ${WINEPREFIX} /tmp/.X11-unix
+RUN set -ex; mkdir -p ${WINEPREFIX} /tmp/.X11-unix /config
 RUN set -ex; chmod 1777 /tmp /tmp/.X11-unix
 # Give the user proper permissions for Wine to run
 RUN set -ex; touch /etc/fstab
-RUN set -ex; chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} ${BACKUP_PATH} ${WINEPREFIX}
+RUN set -ex; chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} ${BACKUP_PATH} ${WINEPREFIX} /config
 # Ensure log directories exist with correct permissions
 RUN set -ex; mkdir -p ${ARK_DIR}/ShooterGame/Saved/Logs ${ARK_DIR}/ShooterGame/Binaries/Win64/logs
 RUN set -ex; chown -R ${USER}:${USER} ${ARK_DIR}
@@ -129,8 +129,8 @@ USER ${USER}
 
 # Add the ll alias. This is just a convenience thing just in case we have an image without it
 RUN set -ex; echo "alias ll='ls -alF'" >> /home/${USER}/.bashrc
-RUN set -ex; echo "export PATH='$PATH:/home/${USER}/.local/bin'" >> /home/${USER}/.bashrc
-RUN set -ex; echo "alias ark='tail -f ${LOG_FILE} ${API_LOG_FILE}'" >> /home/${USER}/.bashrc
+RUN set -ex; echo "alias bashrc='cat /home/${USER}/.bashrc'" >> /home/${USER}/.bashrc
+RUN set -ex; echo "export PATH='$PATH:${USER_SCRIPTS}'" >> /home/${USER}/.bashrc
 
 # Download steamcmd
 WORKDIR ${STEAM_DIR}
@@ -146,14 +146,22 @@ RUN set -ex; \
     mv rcon-0.10.3-amd64_linux/rcon ${USER_SCRIPTS}/rcon; \
     rm -rf rcon.tar.gz rcon-0.10.3-amd64_linux; \
     # Add rcon to PATH
-    echo 'export PATH="$PATH:/home/arkuser/.local/bin"' >> /home/arkuser/.bashrc; \
+    echo 'export PATH="$PATH:${USER_SCRIPTS}"' >> /home/${USER}/.bashrc; \
     chmod +x ${USER_SCRIPTS}/rcon
 
 # Copy scripts to run the server
-COPY --chown=${USER} --chmod=755 ./scripts/manager ${MANAGER_DIR}
+COPY --chown=${USER} --chmod=755 ./manager ${MANAGER_DIR}
+
+# Copy sample configuration file
+COPY --chown=${USER} --chmod=644 ./ark-server-config.json /ark-server-config.json
+
+# Set up the ARK CLI tool
+RUN set -ex; \
+    ln -sf ${MANAGER_DIR}/ark-cli.sh ${USER_SCRIPTS}/ark; \
+    chmod +x ${USER_SCRIPTS}/ark
 
 # Copy the entrypoint script
-COPY --chown=${USER} --chmod=755 ./scripts/entrypoint.sh /entrypoint.sh
+COPY --chown=${USER} --chmod=755 ./entrypoint.sh /entrypoint.sh
 
 USER ${USER}
 

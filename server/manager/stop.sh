@@ -6,9 +6,6 @@
 # Usage: ./stop.sh [options]
 # Options:
 #   --force         Skip player checks and force server shutdown
-#   --save-only     Only save the world, don't shut down the server
-#   --countdown <minutes>  Use a countdown timer before shutdown
-#   --restart       Indicate this is a restart operation (changes messages)
 #   --help          Display this help message
 #
 # =============================================================================
@@ -23,18 +20,21 @@ source "${UTILS_PATH}/common.sh"
 
 # Required environment variables for stopping the server
 declare -a REQUIRED_VARS=(
-    "SERVER_ADMIN_PASSWORD"   # Admin password for RCON
-    "NETWORK_RCON_PORT"       # RCON port for remote commands
-    "SYSTEM_SHUTDOWN_TIMEOUT" # Maximum time to wait for shutdown
+    "SERVER_ADMIN_PASSWORD" # Admin password for RCON
+    "NETWORK_RCON_PORT"     # RCON port for remote commands
 )
 
 # Optional environment variables
 declare -a OPTIONAL_VARS=(
+    "SYSTEM_SHUTDOWN_TIMEOUT"      # Maximum time to wait for shutdown
     "SYSTEM_SHUTDOWN_WARNING_TIME" # Default countdown minutes before shutdown
 )
 
 # Optional variables with defaults
-SYSTEM_SHUTDOWN_WARNING_TIME=${SYSTEM_SHUTDOWN_WARNING_TIME:-5}
+set_default_values() {
+    SYSTEM_SHUTDOWN_WARNING_TIME=${SYSTEM_SHUTDOWN_WARNING_TIME:-5}
+    SYSTEM_SHUTDOWN_TIMEOUT=${SYSTEM_SHUTDOWN_TIMEOUT:-30}
+}
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -49,11 +49,8 @@ save_complete_check() {
         return 1
     fi
 
-    if tail -n 20 "$log_file" | grep -q "World Save Complete"; then
-        return 0
-    else
-        return 1
-    fi
+    tail -n 20 "$log_file" | grep -q "World Save Complete"
+    return $?
 }
 
 # Function to check if server has stopped properly by examining logs
@@ -65,17 +62,20 @@ server_stopped_check() {
         return 1
     fi
 
-    if tail -n 30 "$log_file" | grep -qi "server.*stopped\|exit.*success\|logfile.*closed"; then
-        return 0
-    else
-        return 1
-    fi
+    tail -n 30 "$log_file" | grep -qi "server.*stopped\|exit.*success\|logfile.*closed"
+    return $?
 }
 
 # Function to create shutdown flag file
 create_shutdown_flag() {
-    echo "$(date) - Server shutdown initiated by PID $$" >"$SHUTDOWN_COMPLETE_FLAG"
+    echo "$(date) - Server shutdown initiated by PID $$" >"$SERVER_SHUTDOWN_COMPLETE_FLAG"
     print_success "✅ Created shutdown flag: $SERVER_SHUTDOWN_COMPLETE_FLAG"
+}
+
+# Function to remove shutdown flag
+remove_shutdown_flag() {
+    rm -f "$SERVER_SHUTDOWN_COMPLETE_FLAG"
+    print_success "✅ Removed shutdown flag: $SERVER_SHUTDOWN_COMPLETE_FLAG"
 }
 
 # Function to clean up any remaining processes and resources
@@ -120,23 +120,21 @@ check_connected_players() {
         if [[ "$force_flag" == "--force" ]]; then
             print_warning "Force flag detected - proceeding with shutdown anyway"
             return 0
-        else
-            print_error "❌ Cannot stop server without confirming player count"
-            print_info "Use --force to override this check"
-            return 1
         fi
+
+        print_error "❌ Cannot stop server without confirming player count"
+        print_info "Use --force to override this check"
+        return 1
     fi
 
     # Check if players are connected
     if [[ $player_count -gt 0 ]]; then
         print_warning "⚠️ Found $player_count connected players"
-
         print_info "To force shutdown with connected players, use --force"
         return 1
-    else
-        print_success "✅ No connected players detected"
     fi
 
+    print_success "✅ No connected players detected"
     return 0
 }
 
@@ -159,11 +157,11 @@ save_world_data() {
             print_warning "⚠️ Continuing with shutdown may result in data loss"
             print_warning "Force flag detected - proceeding with shutdown anyway"
             return 0
-        else
-            print_error "❌ Cannot stop server without saving world"
-            print_info "Use --force to override this check"
-            return 1
         fi
+
+        print_error "❌ Cannot stop server without saving world"
+        print_info "Use --force to override this check"
+        return 1
     fi
 
     # Wait for save to complete by checking logs
@@ -181,13 +179,12 @@ save_world_data() {
     if [ $save_wait -lt $max_save_wait ]; then
         print_success "✅ World save completed successfully"
         return 0
-    else
-        print_warning "⚠️ World save timed out"
-        print_error "❌ Cannot confirm world save completed"
-        print_info "Use --force to override this check"
-        return 1
-
     fi
+
+    print_warning "⚠️ World save timed out"
+    print_error "❌ Cannot confirm world save completed"
+    print_info "Use --force to override this check"
+    return 1
 }
 
 # Send shutdown command and verify from logs
@@ -197,11 +194,11 @@ send_shutdown_command() {
     if ark rcon doExit --silent; then
         print_success "✅ Shutdown command sent successfully"
         return 0
-    else
-        print_error "❌ Failed to send shutdown command"
-        print_warning "Server might be offline or not responding to RCON commands"
-        return 1
     fi
+
+    print_error "❌ Failed to send shutdown command"
+    print_warning "Server might be offline or not responding to RCON commands"
+    return 1
 }
 
 # Wait for server process to terminate with visual feedback
@@ -214,10 +211,11 @@ wait_for_server_shutdown() {
     local timer=0
     local check_interval=2
 
-    # First check logs for server stopped message
+    # Check for server shutdown through logs or process termination
     while [[ $timer -lt $timeout ]]; do
         show_spinner "Waiting for server shutdown confirmation... (${timer}s/${timeout}s)"
 
+        # Check if server stopped according to logs
         if server_stopped_check; then
             echo "" # Add a newline after the spinner
             print_success "✅ Server shutdown confirmed in logs"
@@ -225,13 +223,13 @@ wait_for_server_shutdown() {
             # Give the process a moment to actually terminate
             sleep 3
 
+            # Check if process has terminated
             if ! ps -p $pid >/dev/null 2>&1; then
                 print_success "✅ Server process terminated"
                 return 0
             fi
 
-            # If we saw the shutdown in logs but process is still running,
-            # wait a bit longer in case it's doing cleanup
+            # Process still running after log confirmation, give it more time
             local extra_wait=0
             local max_extra_wait=20
 
@@ -301,15 +299,13 @@ force_shutdown() {
     print_warning "⚠️ SIGTERM did not work, using SIGKILL..."
     if kill -9 $pid >/dev/null 2>&1; then
         print_success "✅ Server process forcefully terminated with SIGKILL"
-
         # Also kill any other related processes
         cleanup_processes
-
         return 0
-    else
-        print_error "❌ Failed to forcefully terminate server process"
-        return 1
     fi
+
+    print_error "❌ Failed to forcefully terminate server process"
+    return 1
 }
 
 # Function to perform a countdown with player notifications
@@ -326,7 +322,7 @@ perform_countdown() {
     print_info "Starting ${minutes}-minute countdown before shutdown..."
 
     # Initial notification
-    ./rcon.sh "ServerChat ${message} ${minutes} minute(s)" --silent
+    ark rcon "ServerChat ${message} ${minutes} minute(s)" --silent
 
     # Calculate total seconds
     local total_seconds=$((minutes * 60))
@@ -400,6 +396,32 @@ perform_countdown() {
     return 0
 }
 
+# Function to handle forced shutdown prompt
+handle_forced_shutdown_prompt() {
+    local ark_server_pid=$1
+
+    print_warning "⚠️ Server did not respond to shutdown command within timeout period"
+    echo ""
+    print_info "Would you like to force kill the server? [y/N]"
+    read -n 1 -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_warning "⚠️ Server shutdown aborted by user"
+        return 1
+    fi
+
+    # User confirmed force shutdown
+    if ! force_shutdown $ark_server_pid; then
+        print_error "❌ Failed to force kill the server"
+        return 1
+    fi
+
+    cleanup_processes
+    print_success "🎮 ARK server has been forcefully stopped"
+    return 0
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
@@ -418,30 +440,10 @@ parse_arguments() {
             FORCE_FLAG="--force"
             shift
             ;;
-        --save-only)
-            SAVE_ONLY="yes"
-            shift
-            ;;
-        --countdown)
-            COUNTDOWN="yes"
-            # Check if next argument is a number for countdown minutes
-            if [[ $# -gt 1 && "$2" =~ ^[0-9]+$ ]]; then
-                COUNTDOWN_MINUTES="$2"
-                shift
-            fi
-            shift
-            ;;
-        --restart)
-            IS_RESTART="true"
-            shift
-            ;;
         --help)
             echo "Usage: ./stop.sh [options]"
             echo "Options:"
             echo "  --force         Skip player checks and force server shutdown"
-            echo "  --save-only     Only save the world, don't shut down the server"
-            echo "  --countdown <minutes>  Use a countdown timer before shutdown (default: $SYSTEM_SHUTDOWN_WARNING_TIME)"
-            echo "  --restart       Indicate this is a restart operation (changes messages)"
             echo "  --help          Display this help message"
             exit 0
             ;;
@@ -452,6 +454,38 @@ parse_arguments() {
         esac
     done
 }
+
+# Handle force flag shutdown
+handle_force_flag_shutdown() {
+    local ark_server_pid=$1
+
+    print_warning "⚠️ Force flag detected - skipping player check and world save"
+
+    # Attempt force shutdown and exit with appropriate code
+    if ! force_shutdown $ark_server_pid; then
+        print_error "❌ Failed to force kill the server"
+        return 1
+    fi
+
+    create_shutdown_flag
+    print_success "🎮 ARK server has been forcefully stopped"
+    remove_shutdown_flag
+    return 0
+}
+
+# Function for cleanup on script exit
+cleanup() {
+    local exit_code=$?
+
+    # Remove server start flag
+    remove_shutdown_flag
+
+    print_info "Stop script exiting with code: $exit_code"
+    exit $exit_code
+}
+
+# Set up trap to call cleanup on exit
+trap cleanup EXIT INT TERM
 
 # Main function
 main() {
@@ -465,13 +499,15 @@ main() {
     check_required_env REQUIRED_VARS || exit 1
 
     # Check optional environment variables
-    check_optional_env OPTIONAL_VARS || exit 1
+    check_optional_env OPTIONAL_VARS
 
-    print_info "Environment variables checked"
+    # Set default values for optional variables
+    set_default_values
 
     # Check if server is running
     print_info "Checking server status..."
     local ark_server_pid=$(get_ark_server_pid)
+
     if [[ "$ark_server_pid" == "0" ]]; then
         print_warning "⚠️ No ARK server process found"
         exit 0
@@ -481,100 +517,47 @@ main() {
 
     # When using force flag, skip all checks and go straight to shutdown
     if [[ "$FORCE_FLAG" == "--force" ]]; then
-        print_warning "⚠️ Force flag detected - skipping player check and world save"
-
-        # Still try to save the world
-        print_info "Attempting world save before force shutdown..."
-        ./rcon.sh "SaveWorld" --silent
-
-        # Give it a moment to try to save
-        sleep 5
-
-        if force_shutdown $ark_server_pid; then
-            create_shutdown_flag
-            print_success "🎮 ARK server has been forcefully stopped"
-            exit 0
-        else
-            print_error "❌ Failed to force kill the server"
-            exit 1
-        fi
+        handle_force_flag_shutdown $ark_server_pid
+        exit $?
     fi
 
     # Check for connected players
-    if ! check_connected_players "$FORCE_FLAG"; then
+    if ! check_connected_players; then
         exit 1
     fi
 
-    # If countdown is enabled, perform countdown with notifications
-    if [[ "$COUNTDOWN" == "yes" ]]; then
-        perform_countdown $COUNTDOWN_MINUTES $IS_RESTART
-    fi
+    # Perform countdown for shutdown
+    perform_countdown $COUNTDOWN_MINUTES $IS_RESTART
 
     # Save world data
-    if ! save_world_data "$FORCE_FLAG"; then
+    if ! save_world_data; then
         exit 1
-    fi
-
-    # If save-only mode, exit here
-    if [[ "$SAVE_ONLY" == "yes" ]]; then
-        print_success "✅ World saved successfully, not stopping server (--save-only was specified)"
-        exit 0
     fi
 
     # Create a shutdown flag file to indicate shutdown is in progress
     create_shutdown_flag
 
     # Send shutdown command
-    if send_shutdown_command; then
-        # Wait for server to shut down gracefully
-        if wait_for_server_shutdown $ark_server_pid; then
-            cleanup_processes
-            print_success "🎮 ARK server has been gracefully stopped"
-            exit 0
-        else
-            # If graceful shutdown times out, ask for force kill
-            print_warning "⚠️ Server did not respond to shutdown command within timeout period"
-
-            echo ""
-            print_info "Would you like to force kill the server? [y/N]"
-            read -n 1 -r
-            echo ""
-
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                if force_shutdown $ark_server_pid; then
-                    cleanup_processes
-                    print_success "🎮 ARK server has been forcefully stopped"
-                    exit 0
-                else
-                    print_error "❌ Failed to force kill the server"
-                    exit 1
-                fi
-            else
-                print_warning "⚠️ Server shutdown aborted by user"
-                exit 1
-            fi
-        fi
-    else
-        # If shutdown command fails, offer force kill option
-        echo ""
-        print_info "Would you like to force kill the server? [y/N]"
-        read -n 1 -r
-        echo ""
-
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if force_shutdown $ark_server_pid; then
-                cleanup_processes
-                print_success "🎮 ARK server has been forcefully stopped"
-                exit 0
-            else
-                print_error "❌ Failed to force kill the server"
-                exit 1
-            fi
-        else
-            print_warning "⚠️ Server shutdown aborted by user"
-            exit 1
-        fi
+    if ! send_shutdown_command; then
+        remove_shutdown_flag
+        exit 1
     fi
+
+    # Wait for server to shut down gracefully
+    if wait_for_server_shutdown $ark_server_pid; then
+        cleanup_processes
+        remove_shutdown_flag
+        print_success "🎮 ARK server has been gracefully stopped"
+        exit 0
+    fi
+
+    # Server didn't shut down gracefully, ask to force shutdown
+    local force_result=0
+    handle_forced_shutdown_prompt $ark_server_pid
+    force_result=$?
+
+    remove_shutdown_flag
+    exit $force_result
 }
 
 # Execute the main function with all arguments

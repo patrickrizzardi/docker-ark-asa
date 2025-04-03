@@ -1,0 +1,70 @@
+{
+  "server": {
+    "map": "TheIsland_WP",
+    "session_name": "PvP - YINZERS - The Island",
+    "cluster_id": "yinzers",
+    "password": "",
+    "admin_password": "ab89EBHAEh5b",
+    "description": "Welcome to my ARK server!",
+    "message_of_the_day": "Welcome to the server! Enjoy your stay.",
+    "shutdown_message": "Server is shutting down for maintenance. Please reconnect in a few minutes."
+  },
+
+  "network": {
+    "server_port": "7777",
+    "query_port": "27015",
+    "rcon_port": "27020"
+  },
+
+  "gameplay": {
+    "max_players": "70",
+    "battleye": "true",
+
+    "extra_options": {
+      "OverrideOfficialDifficulty": "5.0",
+      "AllowCrateSpawnsOnTopOfStructures": "true",
+      "AllowFlyingStaminaRecovery": "true",
+      "ShowFloatingDamageText": "true",
+      "MaxPersonalTamedDinos": "500"
+    },
+
+    "extra_dash_options": [
+      "-NoTransferFromFiltering",
+      "-ForceAllowCaveFlyers",
+      "-usecache",
+      "-crossplay",
+      "-culture=en",
+      "-ForceRespawnDinos"
+    ],
+
+    "mods": ["936660"]
+  },
+
+  "system": {
+    "startup_timeout": "300",
+    "startup_wait": "60",
+    "shutdown_timeout": "30",
+    "check_interval": "30",
+    "restart_wait": "60",
+    "shutdown_warning_time": "5"
+  },
+
+  "backup": {
+    "max_backups": "10"
+  },
+
+  "api": {
+    "enabled": "false",
+
+    "plugins": [
+      {
+        "name": "ServerAPI",
+        "url": "https://github.com/ServersHub/ServerAPI/releases/latest/download/ServerAPI.zip"
+      },
+      {
+        "name": "ExamplePlugin",
+        "url": "https://example.com/ExamplePlugin.zip"
+      }
+    ]
+  }
+}

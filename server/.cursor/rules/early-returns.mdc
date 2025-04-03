@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Bad examples
+if [ "$status" = "error" ]; then
+    echo "Error found"
+elif [ "$status" = "warning" ]; then
+    echo "Warning found"
+else
+    echo "Status okay"
+fi
+
+if [ -f "$file" ]; then
+    cat "$file"
+elif [ -d "$file" ]; then
+    ls "$file"
+fi
+
+# Good examples
+[ "$status" = "error" ] && { echo "Error found"; exit 1; }
+[ "$status" = "warning" ] && { echo "Warning found"; exit 2; }
+echo "Status okay"
+
+[ ! -f "$file" ] && { echo "Not a file"; exit 1; }
+cat "$file"
+
+# Rule name: enforce-early-returns
+# Description: Use early returns with && operator instead of elif/else for cleaner flow control

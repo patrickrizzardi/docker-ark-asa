@@ -103,50 +103,113 @@ remove_restart_flags() {
     print_info "Removed restart flags"
 }
 
+# Check if restart is already in progress and handle accordingly
+check_restart_status() {
+    # Skip the check if force flag is provided
+    if [[ $FORCE_RESTART -eq 1 ]]; then
+        return 0
+    fi
+
+    # Check if a restart is already in progress
+    if is_server_restarting; then
+        print_warning "⚠️ Restart already in progress. Use --force to override."
+        return 1
+    fi
+
+    return 0
+}
+
+# Perform signal-based restart (force restart)
+perform_force_restart() {
+    print_info "Performing signal-based restart (Force restart)..."
+
+    ark stop --force
+
+    # Wait a bit for the server to stop
+    sleep 10
+
+    # Start the server
+    ark start
+
+    return $?
+}
+
+# Perform clean restart (stop and start)
+perform_clean_restart() {
+    print_info "Performing clean restart (stop and start)..."
+
+    # Stop the server
+    # Saves happen automatically with the stop command
+    ark stop
+    local stop_result=$?
+
+    if [[ $stop_result -ne 0 ]]; then
+        print_error "❌ Failed to stop the server"
+        return 1
+    fi
+
+    # Small delay to ensure everything is stopped
+    sleep 5
+
+    # Start the server
+    ark start
+    local start_result=$?
+
+    if [[ $start_result -ne 0 ]]; then
+        print_error "❌ Failed to start the server"
+        return 1
+    fi
+
+    return 0
+}
+
 # Perform the restart
 do_restart() {
     print_script_header "Restarting ARK Server"
 
-    # Check if a restart is already in progress
-    if is_server_restarting && [[ $FORCE_RESTART -eq 0 ]]; then
-        print_warning "⚠️ Restart already in progress. Use --force to override."
+    # Check if restart is already in progress
+    if ! check_restart_status; then
         return 1
     fi
 
     # Create restart flag files
     create_restart_flags
 
-    # Perform clean restart if requested, otherwise use signal-based restart
+    # Choose restart method based on force flag
+    local restart_result=0
     if [[ $FORCE -eq 1 ]]; then
-        print_info "Performing signal-based restart (Force restart)..."
-
-        ark stop --force
-
-        # Wait a bit for the server to stop
-        run_with_spinner "sleep 10" "Waiting for server to stop..." 1.0
-
-        # Start the server
-        # run_with_spinner "ark start" "Starting server..." 1.0
+        perform_force_restart
+        restart_result=$?
     else
-        print_info "Performing clean restart (stop and start)..."
-
-        # Stop the server
-        # Saves happen automatically with the stop command
-        run_with_spinner "ark stop" "Stopping server..." 1.0
-
-        # Small delay to ensure everything is stopped
-        # sleep 5
-
-        # Start the server
-        # run_with_spinner "ark start" "Starting server..." 1.0
+        perform_clean_restart
+        restart_result=$?
     fi
 
     # Remove restart flags
     remove_restart_flags
 
+    if [[ $restart_result -ne 0 ]]; then
+        print_error "❌ Restart process failed"
+        return 1
+    fi
+
     print_success "✅ Restart process completed"
     return 0
 }
+
+# Function for cleanup on script exit
+cleanup() {
+    local exit_code=$?
+
+    # Remove server start flag
+    remove_restart_flags
+
+    print_info "Restart script exiting with code: $exit_code"
+    exit $exit_code
+}
+
+# Set up trap to call cleanup on exit
+trap cleanup EXIT INT TERM
 
 # =============================================================================
 # MAIN EXECUTION
@@ -160,7 +223,10 @@ main() {
     check_required_env REQUIRED_VARS || exit 1
 
     # Perform restart
-    do_restart
+    if ! do_restart; then
+        print_error "❌ Restart failed"
+        exit 1
+    fi
 
     print_success "✅ Restart completed successfully"
     return 0
