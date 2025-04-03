@@ -1,19 +1,18 @@
 #!/bin/bash
 # This script serves as the container's entrypoint
 
-# Explicitly print the Wine environment for debugging
-echo "🍷 Wine configuration:"
-echo "WINEARCH: ${WINEARCH}"
-echo "WINEPREFIX: ${WINEPREFIX}"
-echo "WINEDEBUG: ${WINEDEBUG}"
-echo "User: $(id)"
+# Load configuration from JSON file if it exists
+if [ -f "/ark-server-config.json" ]; then
+  echo "📝 Loading configuration from JSON file..."
+  source "${MANAGER_DIR}/utils/configLoader.sh" "/ark-server-config.json"
+fi
 
 # Make sure WINEPREFIX directory exists and is writable
 mkdir -p "${WINEPREFIX}" 2>/dev/null || true
 
 # Set up a virtual display for Wine
 echo "🖥️ Setting up virtual display..."
-# Create X11 directory if needed (but don't try to change permissions)
+# Create X11 directory if needed
 mkdir -p /tmp/.X11-unix 2>/dev/null || true
 
 # Start Xvfb

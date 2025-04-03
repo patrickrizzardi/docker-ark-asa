@@ -61,14 +61,16 @@ services:
       - ./server/Saved:/steam/steamapps/common/asa-server
 
       # Logs
-      - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
+      # - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
+      # - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
 
       # Backups
       - ./server/backups/the-island:/backups
 
       # For dev purposes
-      - ./server/scripts/manager:/manager 
+      - ./server/manager:/manager
+      - ./server/ark-server-config.json:/ark-server-config.json
+      - ./server/entrypoint.sh:/entrypoint.sh
     ports:
       - 7777:7777/udp
       - 7778:7778/udp
@@ -78,26 +80,27 @@ services:
       - ark
     # Increase default grace period to ensure clean shutdown
     stop_grace_period: 30s    
-    environment:
-      SERVER_MAP: TheIsland_WP
-      SESSION_NAME: 'PvP - YINZERS - The Island'
-      SERVER_PORT: 7777
-      RAW_PORT: 7778
-      QUERY_PORT: 27015
-      MAX_PLAYERS: 70
-      SERVER_SHUTDOWN_TIMEOUT: 30
-      ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      CLUSTER: 'yinzers'
+    # environment:
+      # API: true
+      # SERVER_MAP: TheIsland_WP
+      # SESSION_NAME: 'PvP - YINZERS - The Island'
+      # SERVER_PORT: 7777
+      # RAW_PORT: 7778
+      # QUERY_PORT: 27015
+      # MAX_PLAYERS: 70
+      # SERVER_SHUTDOWN_TIMEOUT: 30
+      # ARK_ADMIN_PASSWORD: ab89EBHAEh5b
+      # CLUSTER: 'yinzers'
 
       # If you disable RCON, the builtin manager won't work
-      RCON_PORT: 27020
-      BATTLEYE: 'True'
+      # RCON_PORT: 27020
+      # BATTLEYE: 'True'
 
       # Extra arguments
-      ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
-      MODS: '936660'
+      # ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
+      # ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
+      # EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
+      # MODS: '936660'
     deploy:
       resources:
         limits:

@@ -48,13 +48,20 @@ declare -a START_OPTIONAL_VARS=(
     "ARK_EXTRA_DASH_OPTS" # Extra dash options
     "STARTUP_TIMEOUT"     # Timeout for server startup
     "STARTUP_WAIT"        # Time to wait for server to initialize
+    "API"                 # API server
 )
 
 # Set default values for optional variables
 STARTUP_TIMEOUT=${STARTUP_TIMEOUT:-300}             # 5 minutes timeout for server to start
 STARTUP_WAIT=${STARTUP_WAIT:-30}                    # 30 seconds initial wait for server to initialize
-SERVER_TYPE="server"                                # Default to standard server if no type specified
+SERVER_TYPE="${API,,}"                                # Set server type based on API variable, defaulting to "server" if not set or false
+if [[ "$SERVER_TYPE" != "true" ]]; then
+    SERVER_TYPE="server"
+else
+    SERVER_TYPE="api"
+fi
 SERVER_START_FLAG="${ARK_DIR}/server_starting.flag" # Flag file to indicate server is starting
+
 
 # =============================================================================
 # UTILITY FUNCTIONS

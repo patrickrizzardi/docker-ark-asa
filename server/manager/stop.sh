@@ -15,48 +15,30 @@
 
 # Load environment variables and utilities
 UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/colorPrinter.sh"
-source "${UTILS_PATH}/processManager.sh"
-source "${UTILS_PATH}/envManager.sh"
+source "${UTILS_PATH}/common.sh"
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
 # Required environment variables for stopping the server
-declare -a STOP_REQUIRED_VARS=(
-    "ARK_ADMIN_PASSWORD"      # Admin password for RCON
-    "RCON_PORT"               # RCON port for remote commands
-    "SERVER_SHUTDOWN_TIMEOUT" # Maximum time to wait for shutdown
-    "ARK_DIR"                 # ARK installation directory
-    "STEAM_DIR"               # SteamCMD directory
+declare -a REQUIRED_VARS=(
+    "SERVER_ADMIN_PASSWORD"   # Admin password for RCON
+    "NETWORK_RCON_PORT"       # RCON port for remote commands
+    "SYSTEM_SHUTDOWN_TIMEOUT" # Maximum time to wait for shutdown
 )
 
 # Optional environment variables
-declare -a STOP_OPTIONAL_VARS=(
-    "SHUTDOWN_COUNTDOWN_MINUTES" # Default countdown minutes before shutdown
+declare -a OPTIONAL_VARS=(
+    "SYSTEM_SHUTDOWN_WARNING_TIME" # Default countdown minutes before shutdown
 )
 
 # Optional variables with defaults
-SHUTDOWN_COUNTDOWN_MINUTES=${SHUTDOWN_COUNTDOWN_MINUTES:-2}
-SHUTDOWN_COMPLETE_FLAG="${ARK_DIR}/shutdown_complete.flag"
-
-# Spinner configuration for visual feedback
-declare -a SPINNER=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-SPINNER_IDX=0
+SYSTEM_SHUTDOWN_WARNING_TIME=${SYSTEM_SHUTDOWN_WARNING_TIME:-5}
 
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
-
-# Function to display a spinner with a message
-show_spinner() {
-    local message="$1"
-    local current_spinner=${SPINNER[$SPINNER_IDX]}
-    SPINNER_IDX=$(((SPINNER_IDX + 1) % ${#SPINNER[@]}))
-
-    printf "\r${current_spinner} ${message}"
-}
 
 # Function to check if save is complete by examining logs
 save_complete_check() {
@@ -93,7 +75,7 @@ server_stopped_check() {
 # Function to create shutdown flag file
 create_shutdown_flag() {
     echo "$(date) - Server shutdown initiated by PID $$" >"$SHUTDOWN_COMPLETE_FLAG"
-    print_success "✅ Created shutdown flag: $SHUTDOWN_COMPLETE_FLAG"
+    print_success "✅ Created shutdown flag: $SERVER_SHUTDOWN_COMPLETE_FLAG"
 }
 
 # Function to clean up any remaining processes and resources
@@ -121,10 +103,15 @@ cleanup_processes() {
 check_connected_players() {
     local force_flag="$1"
 
+    if [[ "$force_flag" == "--force" ]]; then
+        print_warning "Force flag detected - skipping player check"
+        return 0
+    fi
+
     print_info "Checking for connected players..."
 
     # Get player count from the listPlayers.sh script
-    local player_count=$(./rconUtils/listPlayers.sh --silent)
+    local player_count=$(ark rcon listPlayers --silent)
     local res=$?
 
     if [[ $res -ne 0 ]]; then
@@ -144,12 +131,8 @@ check_connected_players() {
     if [[ $player_count -gt 0 ]]; then
         print_warning "⚠️ Found $player_count connected players"
 
-        if [[ "$force_flag" != "--force" ]]; then
-            print_info "To force shutdown with connected players, use --force"
-            return 1
-        else
-            print_warning "Force flag detected - proceeding with shutdown despite connected players"
-        fi
+        print_info "To force shutdown with connected players, use --force"
+        return 1
     else
         print_success "✅ No connected players detected"
     fi
@@ -161,10 +144,15 @@ check_connected_players() {
 save_world_data() {
     local force_flag="$1"
 
+    if [[ "$force_flag" == "--force" ]]; then
+        print_warning "Force flag detected - skipping save check"
+        return 0
+    fi
+
     print_info "Saving world data..."
 
     # Send the save command via RCON
-    if ! ./rcon.sh "SaveWorld" --silent; then
+    if ! ark rcon save --silent; then
         print_error "❌ Failed to send save command"
 
         if [[ "$force_flag" == "--force" ]]; then
@@ -195,15 +183,10 @@ save_world_data() {
         return 0
     else
         print_warning "⚠️ World save timed out"
+        print_error "❌ Cannot confirm world save completed"
+        print_info "Use --force to override this check"
+        return 1
 
-        if [[ "$force_flag" == "--force" ]]; then
-            print_warning "Force flag detected - proceeding with shutdown anyway"
-            return 0
-        else
-            print_error "❌ Cannot confirm world save completed"
-            print_info "Use --force to override this check"
-            return 1
-        fi
     fi
 }
 
@@ -211,7 +194,7 @@ save_world_data() {
 send_shutdown_command() {
     print_info "Sending shutdown command to server..."
 
-    if ./rcon.sh "DoExit" --silent; then
+    if ark rcon doExit --silent; then
         print_success "✅ Shutdown command sent successfully"
         return 0
     else
@@ -224,7 +207,7 @@ send_shutdown_command() {
 # Wait for server process to terminate with visual feedback
 wait_for_server_shutdown() {
     local pid=$1
-    local timeout=$SERVER_SHUTDOWN_TIMEOUT
+    local timeout=$SYSTEM_SHUTDOWN_TIMEOUT
 
     print_info "Waiting up to ${timeout} seconds for server to shut down..."
 
@@ -398,11 +381,7 @@ perform_countdown() {
         fi
 
         # Display countdown progress
-        if [ $minutes_remaining -gt 0 ]; then
-            show_spinner "Countdown: ${minutes_remaining}m ${seconds_in_minute}s remaining"
-        else
-            show_spinner "Countdown: ${seconds_in_minute}s remaining"
-        fi
+        show_spinner "Countdown: ${minutes_remaining}m ${seconds_in_minute}s remaining"
 
         sleep 1
         ((seconds_remaining--))
@@ -430,7 +409,7 @@ parse_arguments() {
     FORCE_FLAG=""
     SAVE_ONLY="no"
     COUNTDOWN="no"
-    COUNTDOWN_MINUTES=$SHUTDOWN_COUNTDOWN_MINUTES
+    COUNTDOWN_MINUTES=$SYSTEM_SHUTDOWN_WARNING_TIME
     IS_RESTART="false"
 
     while [[ $# -gt 0 ]]; do
@@ -461,7 +440,7 @@ parse_arguments() {
             echo "Options:"
             echo "  --force         Skip player checks and force server shutdown"
             echo "  --save-only     Only save the world, don't shut down the server"
-            echo "  --countdown <minutes>  Use a countdown timer before shutdown (default: $SHUTDOWN_COUNTDOWN_MINUTES)"
+            echo "  --countdown <minutes>  Use a countdown timer before shutdown (default: $SYSTEM_SHUTDOWN_WARNING_TIME)"
             echo "  --restart       Indicate this is a restart operation (changes messages)"
             echo "  --help          Display this help message"
             exit 0
@@ -476,21 +455,17 @@ parse_arguments() {
 
 # Main function
 main() {
-    clear # Start with a clean screen
-    print_header "🛑 ARK Server Shutdown"
-    echo ""
+    # Use common.sh function to print header
+    print_script_header "🛑 ARK Server Shutdown"
 
     # Parse command-line arguments
     parse_arguments "$@"
 
     # Check required environment variables
-    if ! check_env_variables STOP_REQUIRED_VARS 0; then
-        print_error "❌ Missing required environment variables"
-        exit 1
-    fi
+    check_required_env REQUIRED_VARS || exit 1
 
     # Check optional environment variables
-    check_env_variables STOP_OPTIONAL_VARS 1
+    check_optional_env OPTIONAL_VARS || exit 1
 
     print_info "Environment variables checked"
 
