@@ -522,12 +522,10 @@ main() {
     fi
 
     # Check for connected players
-    if ! check_connected_players; then
-        exit 1
+    if check_connected_players; then
+        # Perform countdown for shutdown
+        perform_countdown $COUNTDOWN_MINUTES $IS_RESTART
     fi
-
-    # Perform countdown for shutdown
-    perform_countdown $COUNTDOWN_MINUTES $IS_RESTART
 
     # Save world data
     if ! save_world_data; then
