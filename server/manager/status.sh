@@ -200,11 +200,12 @@ get_basic_status() {
     # Parse player count based on output
     local player_count=0
 
-    # Count lines only if there are players connected
+    # Count players based on output format
     if [[ "$players_output" != *"No Players Connected"* &&
         "$players_output" != *"completed in"* &&
         -n "$players_output" ]]; then
-        player_count=$(echo "$players_output" | wc -l)
+        # Count lines that match player entry format (number followed by period)
+        player_count=$(echo "$players_output" | grep -c "^[0-9]\+\.")
     fi
 
     # Display player count
