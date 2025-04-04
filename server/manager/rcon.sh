@@ -11,6 +11,9 @@
 # Load utilities
 source "$MANAGER_DIR/utils/common.sh"
 
+# Pass arguments to check_silent_flag to automatically handle silent mode
+check_silent_flag "$@"
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -23,13 +26,10 @@ declare -a REQUIRED_VARS=(
 
 # Parse command line arguments
 parse_args() {
-    SILENT=0
     COMMAND=""
 
     for arg in "$@"; do
-        if [[ "$arg" == "--silent" ]]; then
-            SILENT=1
-        elif [[ -z "$COMMAND" ]]; then
+        if [[ "$arg" != "--silent" && -z "$COMMAND" ]]; then
             COMMAND="$arg"
         fi
     done
@@ -116,7 +116,7 @@ main() {
     parse_args "$@" || return 1
 
     # Display header if not in silent mode
-    if [[ $SILENT -eq 0 ]]; then
+    if [[ "$COMMON_SILENT" != "true" ]]; then
         print_script_header "ARK Server RCON Command"
     fi
 
@@ -133,7 +133,7 @@ main() {
 
     # Handle the result
     if [[ $status -eq 0 ]]; then
-        if [[ $SILENT -eq 0 ]]; then
+        if [[ "$COMMON_SILENT" != "true" ]]; then
             print_success "Command sent successfully"
             echo "Response:"
             echo "$result"

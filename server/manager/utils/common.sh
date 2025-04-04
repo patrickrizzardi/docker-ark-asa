@@ -28,12 +28,26 @@ SCRIPT_NAME=$(basename "$0")
 SCRIPT_PID=$$
 SCRIPT_START_TIME=$(date +%s)
 
+# Check for silent flag in script arguments
+# This function should be called at the beginning of scripts
+check_silent_flag() {
+    for arg in "$@"; do
+        if [[ "$arg" == "--silent" ]]; then
+            export COMMON_SILENT=true
+            break
+        fi
+    done
+}
+
 # Default trap handler for cleanup
 common_cleanup() {
     local exit_code=$?
     local duration=$(($(date +%s) - SCRIPT_START_TIME))
 
-    print_info "Script ${SCRIPT_NAME} completed in ${duration} seconds with exit code: ${exit_code}"
+    # Only print completion message if not in silent mode
+    if [[ "$COMMON_SILENT" != "true" ]]; then
+        print_info "Script ${SCRIPT_NAME} completed in ${duration} seconds with exit code: ${exit_code}"
+    fi
 
     # Execute script-specific cleanup if defined
     if type script_cleanup >/dev/null 2>&1; then
