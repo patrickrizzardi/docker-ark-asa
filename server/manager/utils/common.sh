@@ -35,14 +35,6 @@ common_cleanup() {
 
     print_info "Script ${SCRIPT_NAME} completed in ${duration} seconds with exit code: ${exit_code}"
 
-    # Remove PID file if it exists and belongs to this script
-    if [[ -f "${ARK_DIR}/${SCRIPT_NAME}.pid" ]]; then
-        local pid=$(cat "${ARK_DIR}/${SCRIPT_NAME}.pid")
-        if [[ "$pid" == "$SCRIPT_PID" ]]; then
-            rm -f "${ARK_DIR}/${SCRIPT_NAME}.pid"
-        fi
-    fi
-
     # Execute script-specific cleanup if defined
     if type script_cleanup >/dev/null 2>&1; then
         script_cleanup

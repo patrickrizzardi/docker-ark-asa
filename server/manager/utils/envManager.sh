@@ -31,8 +31,6 @@ check_required_env() {
         return 0
     fi
 
-    print_info "Checking required environment variables..."
-
     local missing_vars=""
     _collect_missing_vars vars missing_vars
     local missing_status=$?
@@ -42,7 +40,6 @@ check_required_env() {
         return 1
     fi
 
-    print_success "✅ All required environment variables are set"
     return 0
 }
 

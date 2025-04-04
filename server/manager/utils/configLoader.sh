@@ -14,14 +14,6 @@ set -eo pipefail
 load_config() {
     local CONFIG_FILE="/ark-server-config.json"
 
-    # Skip loading if the argument is a command-line flag (starts with --)
-    # if [[ "$CONFIG_FILE" == --* ]]; then
-    #     print_warning "⚠️ Skipping config load for argument: $CONFIG_FILE (appears to be a flag)"
-    #     return 0
-    # fi
-
-    print_info "Loading configuration from $CONFIG_FILE"
-
     # Check if config file exists
     if [ ! -f "$CONFIG_FILE" ]; then
         print_error "Configuration file not found: $CONFIG_FILE"
@@ -126,8 +118,6 @@ load_config() {
     for var_name in "${!config_vars[@]}"; do
         export "${var_name}"="${config_vars[$var_name]}"
     done
-
-    print_success "✅ Loaded ${#config_vars[@]} ARK server environment variables"
 
     return 0
 }

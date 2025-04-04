@@ -177,40 +177,43 @@ get_basic_status() {
     # Set up rcon command
     local container_ip=$(get_container_ip)
 
-    print_info "RCON Command: ark rcon ListPlayers"
-    local players_output=$("./utils/rconUtils/listPlayers.sh" 2>/dev/null)
+    local players_output=$(ark rcon "ListPlayers" --silent)
     local rcon_result=$?
-    print_info "RCON Output: $players_output"
 
-    [[ $rcon_result -ne 0 ]] && {
-        format_label_value "RCON Status:" "$(print_status_box "NOT RESPONDING" "yellow")"
-        format_label_value "Server Status:" "$(print_status_box "STARTING" "yellow")"
+    # Check for error indicators in the output text
+    if [[ "$players_output" == *"with exit code: 1"* || "$players_output" == *"failed"* || "$players_output" == *"error"* ]]; then
+        format_label_value "RCON Status:" "$(print_status_box "ERROR" "red")"
+        format_label_value "Server Status:" "$(print_status_box "UNKNOWN" "yellow")"
         return 0
-    }
+    fi
+
+    # Check for "not responding" in output
+    if [[ "$players_output" == *"not responding"* ]]; then
+        format_label_value "RCON Status:" "$(print_status_box "NOT RESPONDING" "yellow")"
+        format_label_value "Server Status:" "$(print_status_box "UNKNOWN" "yellow")"
+        return 0
+    fi
 
     format_label_value "RCON Status:" "$(print_status_box "RESPONDING" "green")"
 
-    # Parse player count
+    # Parse player count based on output
     local player_count=0
 
-    if [[ "$players_output" == *"No Players"* ]]; then
-        # No players online
-        player_count=0
-    else
-        # Count non-empty lines to get player count
-        player_count=$(echo "$players_output" | grep -v "^$" | wc -l)
+    # Count lines only if there are players connected
+    if [[ "$players_output" != *"No Players Connected"* &&
+        "$players_output" != *"completed in"* &&
+        -n "$players_output" ]]; then
+        player_count=$(echo "$players_output" | wc -l)
     fi
 
-    # Display player count only once
-    print_info "Online Players: $player_count"
+    # Display player count
     format_label_value "Online Players:" "$player_count"
 
-    # If we have players, show the list
-
+    # Show player list if available
     echo ""
     echo "Player List:"
     echo "------------"
-    echo "$players_output" | grep -v "^$"
+    echo "$players_output"
 
     format_label_value "Server Status:" "$(print_status_box "ONLINE" "green")"
     return 0

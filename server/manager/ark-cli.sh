@@ -1,7 +1,10 @@
 #!/bin/bash
+# TODO
 
 # ARK Server CLI Wrapper
 # Provides a unified interface for ARK Server management commands
+
+source "${MANAGER_DIR}/utils/colorPrinter.sh"
 
 # Get the name of this script (for error messages)
 SCRIPT_NAME=$(basename "$0")
@@ -12,13 +15,6 @@ if [ -L "$0" ]; then
 else
     COMMAND_NAME="$SCRIPT_NAME"
 fi
-
-# Define colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 # Define the commands and their descriptions
 declare -A COMMANDS=(
