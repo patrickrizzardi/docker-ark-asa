@@ -195,6 +195,7 @@ get_basic_status() {
     fi
 
     format_label_value "RCON Status:" "$(print_status_box "RESPONDING" "green")"
+    format_label_value "Server Status:" "$(print_status_box "ONLINE" "green")"
 
     # Parse player count based on output
     local player_count=0
@@ -215,7 +216,6 @@ get_basic_status() {
     echo "------------"
     echo "$players_output"
 
-    format_label_value "Server Status:" "$(print_status_box "ONLINE" "green")"
     return 0
 }
 
