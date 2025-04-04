@@ -28,6 +28,48 @@ SCRIPT_NAME=$(basename "$0")
 SCRIPT_PID=$$
 SCRIPT_START_TIME=$(date +%s)
 
+# =============================================================================
+# COMMON FUNCTIONS
+# =============================================================================
+
+# TODO update files to use this functions
+# Check if a variable is empty
+# Example usage:
+# if is_empty "$var"; then
+#     echo "Variable is empty"
+# fi
+is_empty() { [[ -z "$1" ]]; }
+
+# TODO update files to use this functions
+# Check if a variable contains a substring
+# Example usage:
+# if contains "$var" "substring"; then
+#     echo "Variable contains substring"
+# fi
+contains() { [[ "$1" == *"$2"* ]]; }
+
+# TODO update files to use this functions
+# Check if a variable equals a value
+# Example usage:
+# if equals "$var" "value"; then
+#     echo "Variable equals value"
+# fi
+equals() { [[ "$1" == "$2" ]]; }
+
+# TODO update files to use this functions
+# Execute a command and capture both stdout and stderr
+# Returns the command's exit code
+# Example usage:
+# result=$(capture_all_output ark rcon "ListPlayers" --silent)
+# exit_code=$?
+# if [ $exit_code -ne 0 ]; then
+#     echo "Command failed with: $result"
+# fi
+capture_all_output() {
+    "$@" 2>&1
+    return $?
+}
+
 # Check for silent flag in script arguments
 # This function should be called at the beginning of scripts
 check_silent_flag() {

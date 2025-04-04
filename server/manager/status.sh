@@ -47,10 +47,10 @@ show_usage() {
 # Get the container's IP address
 get_container_ip() {
     local ip=$(hostname -I | awk '{print $1}')
-    [[ -z "$ip" ]] && {
+    if is_empty "$ip"; then
         echo "0.0.0.0"
         return 0
-    }
+    fi
     echo "$ip"
 }
 
@@ -88,41 +88,43 @@ get_listening_port() {
     # Get ARK server PID using the utility function
     local ark_pid=$(get_ark_server_pid)
 
-    [[ "$ark_pid" == "0" ]] && return 1
+    if equals "$ark_pid" "0"; then
+        return 1
+    fi
 
     # Look for connections on SERVER_PORT or any port if SERVER_PORT is not specified
-    [[ -n "$SERVER_PORT" ]] && {
+    if ! is_empty "$SERVER_PORT"; then
         # Look specifically for the configured server port
         local port_info=$(ss -tupln | grep -E "$ark_pid.*:$SERVER_PORT" | head -1)
-        [[ -n "$port_info" ]] && {
+        if ! is_empty "$port_info"; then
             echo "$SERVER_PORT"
             return 0
-        }
-    }
+        fi
+    fi
 
     # No specific server port configured or not found, get the first port this process listens on
     local listening_ports=$(ss -tupln | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
-    [[ -n "$listening_ports" ]] && {
+    if ! is_empty "$listening_ports"; then
         echo "$listening_ports"
         return 0
-    }
+    fi
 
     # Try to find the port by looking at UDP connections, as ARK server uses UDP
     local udp_port=$(ss -uplna | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
-    [[ -n "$udp_port" ]] && {
+    if ! is_empty "$udp_port"; then
         echo "$udp_port"
         return 0
-    }
+    fi
 
     # As a last resort, check for any port close to the configured SERVER_PORT
-    [[ -n "$SERVER_PORT" ]] && {
+    if ! is_empty "$SERVER_PORT"; then
         # Check if any process is listening on the expected port
         local any_process_port=$(ss -tupln | grep ":$SERVER_PORT" | grep -oP '(?<=:)\d+')
-        [[ -n "$any_process_port" ]] && {
+        if ! is_empty "$any_process_port"; then
             echo "$any_process_port"
             return 0
-        }
-    }
+        fi
+    fi
 
     # No port found
     return 1
@@ -149,7 +151,7 @@ set_basic_status_variables() {
     PROCESS_ID="$ark_pid"
 
     # Check if server is running
-    if [[ "$ark_pid" == "0" || -z "$ark_pid" ]]; then
+    if equals "$ark_pid" "0" || is_empty "$ark_pid"; then
         SERVER_STATUS="OFFLINE"
         SERVER_STATUS_COLOR="red"
         STATUS_NOTE="Not running"
@@ -163,7 +165,7 @@ set_basic_status_variables() {
 
     # Check if server is listening on the port
     local listening_port=$(get_listening_port)
-    if [[ -z "$listening_port" ]]; then
+    if is_empty "$listening_port"; then
         LISTENING_PORT=""
         SERVER_STATUS="STARTING"
         SERVER_STATUS_COLOR="yellow"
@@ -176,7 +178,7 @@ set_basic_status_variables() {
     SERVER_STATUS_COLOR="green"
 
     # Check if RCON is available
-    if [[ -z "$NETWORK_RCON_PORT" || -z "$SERVER_ADMIN_PASSWORD" ]]; then
+    if is_empty "$NETWORK_RCON_PORT" || is_empty "$SERVER_ADMIN_PASSWORD"; then
         RCON_STATUS="NOT CONFIGURED"
         RCON_STATUS_COLOR="yellow"
         STATUS_NOTE="RCON not configured, cannot verify server responsiveness"
@@ -184,11 +186,11 @@ set_basic_status_variables() {
     fi
 
     # Run RCON command with silent mode enabled
-    local players_output=$(ark rcon "ListPlayers" --silent 2>&1)
+    local players_output=$(capture_all_output ark rcon "ListPlayers" --silent)
     echo "Players output: $players_output"
 
     # Check for error indicators in the output text
-    if [[ "$players_output" == *"with exit code: 1"* || "$players_output" == *"failed"* || "$players_output" == *"error"* ]]; then
+    if contains "$players_output" "with exit code: 1" || contains "$players_output" "failed" || contains "$players_output" "error"; then
         RCON_STATUS="ERROR"
         RCON_STATUS_COLOR="red"
         PLAYER_COUNT="0"
@@ -196,7 +198,7 @@ set_basic_status_variables() {
     fi
 
     # Check for "not responding" in output
-    if [[ "$players_output" == *"not responding"* || "$players_output" == *"RCON timeout"* ]]; then
+    if contains "$players_output" "not responding" || contains "$players_output" "RCON timeout"; then
         RCON_STATUS="NOT RESPONDING"
         RCON_STATUS_COLOR="yellow"
         PLAYER_COUNT="0"
@@ -211,9 +213,9 @@ set_basic_status_variables() {
     local player_count=0
 
     # Handle "No Players Connected" case explicitly
-    if [[ "$players_output" == *"No Players Connected"* ]]; then
+    if contains "$players_output" "No Players Connected"; then
         player_count=0
-    elif [[ -n "$players_output" ]]; then
+    elif ! is_empty "$players_output"; then
         # Count lines that match player entries (looking for lines with numbers followed by period)
         player_count=$(echo "$players_output" | grep -c "^[0-9]\+\.")
     fi
@@ -235,7 +237,7 @@ get_basic_status() {
     format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
 
     # If server is offline, just show minimal info
-    if [[ "$SERVER_STATUS" == "OFFLINE" ]]; then
+    if equals "$SERVER_STATUS" "OFFLINE"; then
         echo ""
         format_label_value "Process:" "$STATUS_NOTE"
         return $status_result
@@ -246,7 +248,7 @@ get_basic_status() {
     format_label_value "Server Type:" "$SERVER_TYPE"
 
     # Show port info if available
-    if [[ -n "$LISTENING_PORT" ]]; then
+    if ! is_empty "$LISTENING_PORT"; then
         format_label_value "Listening Port:" "$LISTENING_PORT"
     else
         format_label_value "Expected Port:" "$SERVER_PORT"
@@ -259,7 +261,7 @@ get_basic_status() {
     format_label_value "Online Players:" "$PLAYER_COUNT"
 
     # Show note if any
-    if [[ -n "$STATUS_NOTE" ]]; then
+    if ! is_empty "$STATUS_NOTE"; then
         echo ""
         format_label_value "Note:" "$STATUS_NOTE"
     fi
