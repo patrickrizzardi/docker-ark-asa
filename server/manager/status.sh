@@ -132,71 +132,80 @@ get_listening_port() {
 # BASIC STATUS FUNCTIONS
 # =============================================================================
 
-# Get basic server status information
-get_basic_status() {
-    print_script_header "ARK Server Status"
+set_basic_status_variables() {
+    # Initialize all variables
+    PROCESS_ID=""
+    SERVER_TYPE=""
+    LISTENING_PORT=""
+    RCON_STATUS=""
+    SERVER_STATUS=""
+    PLAYER_COUNT="0"
+    SERVER_STATUS_COLOR="red"
+    RCON_STATUS_COLOR="red"
+    STATUS_NOTE=""
 
     # Get the server PID
     local ark_pid=$(get_ark_server_pid)
-    [[ "$ark_pid" == "0" ]] && {
-        format_label_value "Server Status:" "$(print_status_box "OFFLINE" "red")"
-        echo ""
-        format_label_value "Process:" "Not running"
-        return 1
-    }
+    PROCESS_ID="$ark_pid"
 
-    # Server is running, show process info
-    format_label_value "Process ID:" "$ark_pid"
+    # Check if server is running
+    if [[ "$ark_pid" == "0" || -z "$ark_pid" ]]; then
+        SERVER_STATUS="OFFLINE"
+        SERVER_STATUS_COLOR="red"
+        STATUS_NOTE="Not running"
+        return 1
+    fi
 
     # Show server type (API or regular)
     local server_type="Game Server"
     ps -p "$ark_pid" -o cmd= | grep -q "AsaApiLoader" && server_type="API Server"
-    format_label_value "Server Type:" "$server_type"
+    SERVER_TYPE="$server_type"
 
     # Check if server is listening on the port
     local listening_port=$(get_listening_port)
-    [[ -z "$listening_port" ]] && {
-        format_label_value "Network Status:" "$(print_status_box "NOT LISTENING" "yellow")"
-        format_label_value "Expected Port:" "$SERVER_PORT"
-        format_label_value "Server Status:" "$(print_status_box "STARTING" "yellow")"
-        echo ""
-        format_label_value "Note:" "Server is running but not yet listening on network port"
+    if [[ -z "$listening_port" ]]; then
+        LISTENING_PORT=""
+        SERVER_STATUS="STARTING"
+        SERVER_STATUS_COLOR="yellow"
+        STATUS_NOTE="Server is running but not yet listening on network port"
         return 2
-    }
+    fi
 
-    format_label_value "Listening Port:" "$listening_port"
+    LISTENING_PORT="$listening_port"
+    SERVER_STATUS="ONLINE"
+    SERVER_STATUS_COLOR="green"
 
     # Check if RCON is available
-    [[ -z "$NETWORK_RCON_PORT" || -z "$SERVER_ADMIN_PASSWORD" ]] && {
-        format_label_value "RCON Status:" "$(print_status_box "NOT CONFIGURED" "yellow")"
-        format_label_value "Server Status:" "$(print_status_box "UNKNOWN" "yellow")"
-        format_label_value "Note:" "RCON not configured, cannot verify server responsiveness"
+    if [[ -z "$NETWORK_RCON_PORT" || -z "$SERVER_ADMIN_PASSWORD" ]]; then
+        RCON_STATUS="NOT CONFIGURED"
+        RCON_STATUS_COLOR="yellow"
+        STATUS_NOTE="RCON not configured, cannot verify server responsiveness"
         return 0
-    }
-
-    # Set up rcon command
-    local container_ip=$(get_container_ip)
+    fi
 
     # Run RCON command with silent mode enabled
-    local players_output=$(ark rcon "ListPlayers" --silent)
-    local rcon_result=$?
+    local players_output=$(ark rcon "ListPlayers" --silent 2>&1)
+    echo "Players output: $players_output"
 
     # Check for error indicators in the output text
     if [[ "$players_output" == *"with exit code: 1"* || "$players_output" == *"failed"* || "$players_output" == *"error"* ]]; then
-        format_label_value "RCON Status:" "$(print_status_box "ERROR" "red")"
-        format_label_value "Server Status:" "$(print_status_box "UNKNOWN" "yellow")"
+        RCON_STATUS="ERROR"
+        RCON_STATUS_COLOR="red"
+        PLAYER_COUNT="0"
         return 0
     fi
 
     # Check for "not responding" in output
-    if [[ "$players_output" == *"not responding"* ]]; then
-        format_label_value "RCON Status:" "$(print_status_box "NOT RESPONDING" "yellow")"
-        format_label_value "Server Status:" "$(print_status_box "UNKNOWN" "yellow")"
+    if [[ "$players_output" == *"not responding"* || "$players_output" == *"RCON timeout"* ]]; then
+        RCON_STATUS="NOT RESPONDING"
+        RCON_STATUS_COLOR="yellow"
+        PLAYER_COUNT="0"
         return 0
     fi
 
-    format_label_value "RCON Status:" "$(print_status_box "RESPONDING" "green")"
-    format_label_value "Server Status:" "$(print_status_box "ONLINE" "green")"
+    # Server is fully online and responding
+    RCON_STATUS="RESPONDING"
+    RCON_STATUS_COLOR="green"
 
     # Parse player count based on output
     local player_count=0
@@ -209,16 +218,53 @@ get_basic_status() {
         player_count=$(echo "$players_output" | grep -c "^[0-9]\+\.")
     fi
 
-    # Display player count
-    format_label_value "Online Players:" "$player_count"
-
-    # Show player list if available
-    echo ""
-    echo "Player List:"
-    echo "------------"
-    echo "$players_output"
+    PLAYER_COUNT="$player_count"
 
     return 0
+}
+
+# Get basic server status information
+get_basic_status() {
+    print_script_header "ARK Server Status"
+
+    # Get status data through the variables
+    set_basic_status_variables
+    local status_result=$?
+
+    # Show server status based on variables
+    format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
+
+    # If server is offline, just show minimal info
+    if [[ "$SERVER_STATUS" == "OFFLINE" ]]; then
+        echo ""
+        format_label_value "Process:" "$STATUS_NOTE"
+        return $status_result
+    fi
+
+    # Server is running, show process info
+    format_label_value "Process ID:" "$PROCESS_ID"
+    format_label_value "Server Type:" "$SERVER_TYPE"
+
+    # Show port info if available
+    if [[ -n "$LISTENING_PORT" ]]; then
+        format_label_value "Listening Port:" "$LISTENING_PORT"
+    else
+        format_label_value "Expected Port:" "$SERVER_PORT"
+    fi
+
+    # Show RCON status
+    format_label_value "RCON Status:" "$(print_status_box "$RCON_STATUS" "$RCON_STATUS_COLOR")"
+
+    # Show player count
+    format_label_value "Online Players:" "$PLAYER_COUNT"
+
+    # Show note if any
+    if [[ -n "$STATUS_NOTE" ]]; then
+        echo ""
+        format_label_value "Note:" "$STATUS_NOTE"
+    fi
+
+    return $status_result
 }
 
 # =============================================================================
@@ -239,44 +285,69 @@ setup_eos_credentials() {
     # Check if PDB tool exists, if not download it
     [[ ! -f "$PDB_TOOL" ]] && {
         print_info "Downloading pdb-sym2addr-rs tool..."
-        local download_cmd="wget -q https://github.com/azixus/pdb-sym2addr-rs/releases/latest/download/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz -O ${MANAGER_DIR}/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz"
+
+        local download_file="${MANAGER_DIR}/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz"
+        local download_cmd="wget -q https://github.com/azixus/pdb-sym2addr-rs/releases/latest/download/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz -O ${download_file}"
 
         loading "$download_cmd" "Downloading PDB tool..."
+        local download_status=$?
 
-        [[ $? -ne 0 ]] && {
+        # Check download status
+        [[ $download_status -ne 0 ]] && {
             print_error "❌ Failed to download pdb-sym2addr-rs tool"
             return 1
         }
 
-        tar -xzf ${MANAGER_DIR}/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz -C ${MANAGER_DIR}
-        rm ${MANAGER_DIR}/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz
+        # Extract the tool
+        tar -xzf ${download_file} -C ${MANAGER_DIR}
+        local extract_status=$?
 
-        [[ ! -f "$PDB_TOOL" ]] && {
+        # Cleanup the tarball regardless of success
+        rm -f ${download_file}
+
+        # Check extract status
+        [[ $extract_status -ne 0 ]] && {
             print_error "❌ Failed to extract pdb-sym2addr tool"
             return 1
         }
 
+        # Check if the tool exists after extraction
+        [[ ! -f "$PDB_TOOL" ]] && {
+            print_error "❌ Tool file not found after extraction"
+            return 1
+        }
+
         chmod +x "$PDB_TOOL"
+
+        # Verify it's executable
+        [[ ! -x "$PDB_TOOL" ]] && {
+            print_error "❌ Failed to make pdb-sym2addr tool executable"
+            return 1
+        }
+
+        print_success "✅ PDB tool downloaded and set up successfully"
     }
 
     # Extract symbols
     print_info "Extracting EOS credentials from PDB file..."
+
     local extract_cmd="$PDB_TOOL ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb DedicatedServerClientSecret DedicatedServerClientId DeploymentId"
+    local symbols=$(loading "$extract_cmd" "Extracting credentials")
+    local extract_status=$?
 
-    local symbols=$(loading "$extract_cmd" "Extracting credentials...")
-
-    [[ $? -ne 0 ]] && {
+    [[ $extract_status -ne 0 ]] && {
         print_error "❌ Failed to extract symbols from PDB file"
         return 1
     }
 
-    # Parse symbols
-    local client_id=$(echo "$symbols" | grep -o 'DedicatedServerClientId.*' | cut -d, -f2)
-    local client_secret=$(echo "$symbols" | grep -o 'DedicatedServerClientSecret.*' | cut -d, -f2)
-    local deployment_id=$(echo "$symbols" | grep -o 'DeploymentId.*' | cut -d, -f2)
+    # Parse values using the correct CSV column format
+    local client_id=$(echo "$symbols" | grep "DedicatedServerClientId" | cut -d, -f3)
+    local client_secret=$(echo "$symbols" | grep "DedicatedServerClientSecret" | cut -d, -f3)
+    local deployment_id=$(echo "$symbols" | grep "DeploymentId" | cut -d, -f3)
 
     [[ -z "$client_id" || -z "$client_secret" || -z "$deployment_id" ]] && {
         print_error "❌ Failed to parse extracted symbols"
+        print_info "Please check the PDB file and ensure it contains the required credentials."
         return 1
     }
 
@@ -288,6 +359,15 @@ setup_eos_credentials() {
         print_error "❌ Failed to save credentials to file"
         return 1
     }
+
+    # Clean up - remove PDB tool to avoid bloat
+    if [[ -f "$PDB_TOOL" ]]; then
+        rm -f "$PDB_TOOL"
+
+        [[ -f "$PDB_TOOL" ]] && {
+            print_warning "⚠️ Failed to remove PDB tool, but credentials were saved successfully"
+        }
+    fi
 
     print_success "✅ EOS credentials extracted and saved successfully"
     return 0
@@ -312,148 +392,292 @@ full_status_first_run() {
     return $?
 }
 
-# Function to display detailed status using EOS API
-get_detailed_status() {
-    # First check if we have basic server connectivity
-    get_basic_status
+# Function to handle detailed status logic and set variables
+set_detailed_status_variables() {
+    # Initialize detailed status variables
+    DETAILED_EOS_STATUS="NOT CONFIGURED"
+    DETAILED_EOS_COLOR="yellow"
+    DETAILED_NOTE=""
+    DETAILED_SERVER_NAME=""
+    DETAILED_GAME_MODE=""
+    DETAILED_MAP=""
+    DETAILED_TIME_OF_DAY=""
+    DETAILED_MAX_PLAYERS=""
+    DETAILED_CURRENT_PLAYERS=""
+    DETAILED_PLAYERS_RATIO=""
+    DETAILED_BATTLEYE=""
+    DETAILED_SERVER_VERSION=""
+    DETAILED_PUBLIC_ADDRESS=""
+    DETAILED_BIND_ADDRESS=""
+    DETAILED_ACTIVE_MODS=""
+
+    # First get basic status
+    set_basic_status_variables
     local basic_status=$?
 
-    [[ $basic_status -eq 1 ]] && {
-        # Server is offline, no need to continue
-        print_warning "⚠️ Server is offline, cannot retrieve detailed status"
-        return 1
-    }
-
-    echo ""
-    print_script_header "Detailed Server Information"
+    # Bail out if server is not running or not listening
+    [[ "$SERVER_STATUS" == "OFFLINE" || -z "$LISTENING_PORT" ]] && return $basic_status
 
     # Check if EOS credentials exist
-    [[ ! -f "$EOS_FILE" ]] && {
-        print_warning "⚠️ EOS credentials not found"
-        full_status_first_run
-        [[ $? -ne 0 ]] && return 1
-    }
+    if [[ ! -f "$EOS_FILE" ]]; then
+        DETAILED_EOS_STATUS="NOT CONFIGURED"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="Epic Online Services credentials not found. Run with --full to set up."
+        return 0
+    fi
 
-    # Read EOS credentials
+    # Read credentials from file
     local creds=$(cat "$EOS_FILE" | cut -d, -f1)
     local id=$(cat "$EOS_FILE" | cut -d, -f2)
 
-    [[ -z "$creds" || -z "$id" ]] && {
-        print_error "❌ Invalid EOS credentials format"
-        # Try to regenerate
-        setup_eos_credentials
-        [[ $? -ne 0 ]] && return 1
-        creds=$(cat "$EOS_FILE" | cut -d, -f1)
-        id=$(cat "$EOS_FILE" | cut -d, -f2)
-    }
+    if [[ -z "$creds" || -z "$id" ]]; then
+        DETAILED_EOS_STATUS="INVALID CREDENTIALS"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="Epic Online Services credentials format is invalid. Run with --full to regenerate."
+        return 0
+    fi
 
     # Get public IP
-    local ip_cmd="curl -s -m 5 https://ifconfig.me/ip || curl -s -m 5 https://api.ipify.org || curl -s -m 5 https://icanhazip.com"
-    local ip=$(loading "$ip_cmd" "Determining public IP...")
+    local ip=""
 
-    [[ -z "$ip" ]] && {
-        print_error "❌ Failed to determine public IP address"
-        return 1
-    }
+    # Try multiple IP detection services
+    for ip_service in "https://ifconfig.me/ip" "https://api.ipify.org" "https://icanhazip.com"; do
+        ip=$(curl -s --max-time 5 "$ip_service" | tr -d '[:space:]')
+        [[ -n "$ip" && "$ip" =~ ^[0-9.]+$ ]] && break
+    done
 
-    print_info "Connecting to Epic Online Services API..."
+    # Verify we have a valid IP
+    if [[ -z "$ip" || ! "$ip" =~ ^[0-9.]+$ ]]; then
+        DETAILED_EOS_STATUS="IP DETECTION FAILED"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="Failed to determine public IP address - cannot query EOS API"
+        return 0
+    fi
 
     # Get OAuth token
     local oauth_cmd="curl -s -m 10 -H 'Content-Type: application/x-www-form-urlencoded' -H 'Accept: application/json' -H \"Authorization: Basic ${creds}\" -X POST https://api.epicgames.dev/auth/v1/oauth/token -d \"grant_type=client_credentials&deployment_id=${id}\""
-    local oauth=$(loading "$oauth_cmd" "Authenticating with EOS API...")
+    local oauth=$(eval "$oauth_cmd")
 
-    [[ -z "$oauth" || "$oauth" == *"error"* ]] && {
-        print_error "❌ Failed to authenticate with EOS API"
-        print_info "API response: $oauth"
-        print_warning "⚠️ Credentials may be outdated. Attempting to regenerate..."
-        setup_eos_credentials
-        [[ $? -ne 0 ]] && return 1
-        # Retry with new credentials
-        creds=$(cat "$EOS_FILE" | cut -d, -f1)
-        id=$(cat "$EOS_FILE" | cut -d, -f2)
-        oauth=$(loading "$oauth_cmd" "Retrying authentication with new credentials...")
-    }
+    if [[ -z "$oauth" || "$oauth" == *"error"* ]]; then
+        DETAILED_EOS_STATUS="AUTH FAILED"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="Failed to authenticate with Epic Online Services API"
+        return 0
+    fi
 
     local token=$(echo "$oauth" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//;s/"//')
 
-    [[ -z "$token" ]] && {
-        print_error "❌ Failed to extract access token from OAuth response"
-        return 1
-    }
+    if [[ -z "$token" ]]; then
+        DETAILED_EOS_STATUS="TOKEN FAILED"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="Failed to extract access token from OAuth response"
+        return 0
+    fi
 
     # Query EOS for server information
-    local query_cmd="curl -s -m 10 -X \"POST\" \"https://api.epicgames.dev/matchmaking/v1/${id}/filter\" \
+    local json_data=$(
+        cat <<EOF
+{
+  "criteria": [
+    {
+      "key": "attributes.ADDRESS_s",
+      "op": "EQUAL",
+      "value": "$ip"
+    }
+  ]
+}
+EOF
+    )
+
+    # Save to temporary file
+    local temp_json=$(mktemp)
+    echo "$json_data" >"$temp_json"
+
+    # Use the file in the curl request
+    local query_cmd="curl -s -m 10 -X POST \"https://api.epicgames.dev/matchmaking/v1/${id}/filter\" \
         -H \"Content-Type:application/json\" \
         -H \"Accept:application/json\" \
         -H \"Authorization: Bearer $token\" \
-        -d \"{\\\"criteria\\\": [{\\\"key\\\": \\\"attributes.ADDRESS_s\\\", \\\"op\\\": \\\"EQUAL\\\", \\\"value\\\": \\\"${ip}\\\"}]}\""
+        -d @$temp_json"
 
-    local res=$(loading "$query_cmd" "Querying EOS API for server information...")
+    local res=$(eval "$query_cmd")
+
+    # Clean up temporary file
+    rm -f "$temp_json"
 
     # Check for errors
-    [[ "$res" == *"errorCode"* ]] && {
-        print_error "❌ Failed to query EOS API"
-        print_info "API error: $res"
-        print_warning "⚠️ Retrying once with regenerated credentials..."
-        setup_eos_credentials
-        [[ $? -ne 0 ]] && return 1
-        # Retry the entire process with new credentials
-        get_detailed_status
-        return $?
-    }
+    if [[ "$res" == *"errorCode"* ]]; then
+        DETAILED_EOS_STATUS="API ERROR"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="EOS API returned an error"
+        return 0
+    fi
 
     # Extract server based on port
-    local serv=$(echo "$res" | jq -r ".sessions[] | select( .attributes.ADDRESSBOUND_s | contains(\":${SERVER_PORT}\"))")
+    local serv=$(echo "$res" | jq -r ".sessions[] | select(.attributes.ADDRESSBOUND_s | contains(\":${SERVER_PORT}\"))")
 
-    [[ -z "$serv" ]] && {
-        print_warning "⚠️ Server not found in EOS listings"
-        print_info "The server may be starting up or not yet registered with EOS"
-        return 1
-    }
+    if [[ -z "$serv" ]]; then
+        DETAILED_EOS_STATUS="SERVER NOT FOUND"
+        DETAILED_EOS_COLOR="yellow"
+        DETAILED_NOTE="Server not found in EOS listings (may be starting up or not registered)"
+        return 0
+    fi
+
+    # Set successful status
+    DETAILED_EOS_STATUS="CONNECTED"
+    DETAILED_EOS_COLOR="green"
 
     # Extract server information
-    local curr_players=$(echo "$serv" | jq -r '.totalPlayers')
-    local max_players=$(echo "$serv" | jq -r '.settings.maxPublicPlayers')
-    local serv_name=$(echo "$serv" | jq -r '.attributes.CUSTOMSERVERNAME_s')
-    local day=$(echo "$serv" | jq -r '.attributes.DAYTIME_s')
+    DETAILED_CURRENT_PLAYERS=$(echo "$serv" | jq -r '.totalPlayers')
+    DETAILED_MAX_PLAYERS=$(echo "$serv" | jq -r '.settings.maxPublicPlayers')
+    DETAILED_PLAYERS_RATIO="${DETAILED_CURRENT_PLAYERS} / ${DETAILED_MAX_PLAYERS}"
+    DETAILED_SERVER_NAME=$(echo "$serv" | jq -r '.attributes.CUSTOMSERVERNAME_s')
+    DETAILED_TIME_OF_DAY=$(echo "$serv" | jq -r '.attributes.DAYTIME_s')
+
     local battleye=$(echo "$serv" | jq -r '.attributes.SERVERUSESBATTLEYE_b')
+    DETAILED_BATTLEYE="Disabled"
+    [[ "$battleye" == "true" ]] && DETAILED_BATTLEYE="Enabled"
+
     local server_ip=$(echo "$serv" | jq -r '.attributes.ADDRESS_s')
     local bind=$(echo "$serv" | jq -r '.attributes.ADDRESSBOUND_s')
-    local map=$(echo "$serv" | jq -r '.attributes.MAPNAME_s')
-    local major=$(echo "$serv" | jq -r '.attributes.BUILDID_s')
-    local minor=$(echo "$serv" | jq -r '.attributes.MINORBUILDID_s')
-    local pve=$(echo "$serv" | jq -r '.attributes.SESSIONISPVE_l')
-    local mods=$(echo "$serv" | jq -r '.attributes.ENABLEDMODS_s')
     local bind_ip=${bind%:*}
     local bind_port=${bind#*:}
+    DETAILED_PUBLIC_ADDRESS="${server_ip}:${bind_port}"
+    DETAILED_BIND_ADDRESS="${bind}"
 
-    # Format PvE/PvP
-    local game_mode="PvP"
-    [[ "$pve" == "1" ]] && game_mode="PvE"
+    DETAILED_MAP=$(echo "$serv" | jq -r '.attributes.MAPNAME_s')
 
-    # Format BattlEye
-    local battleye_status="Disabled"
-    [[ "$battleye" == "true" ]] && battleye_status="Enabled"
+    local major=$(echo "$serv" | jq -r '.attributes.BUILDID_s')
+    local minor=$(echo "$serv" | jq -r '.attributes.MINORBUILDID_s')
+    DETAILED_SERVER_VERSION="${major}.${minor}"
 
-    # Format mods
-    [[ "$mods" == "null" || -z "$mods" ]] && mods="None"
+    local pve=$(echo "$serv" | jq -r '.attributes.SESSIONISPVE_l')
+    DETAILED_GAME_MODE="PvP"
+    [[ "$pve" == "1" ]] && DETAILED_GAME_MODE="PvE"
 
-    # Display detailed status
-    format_label_value "Server Name:" "$serv_name"
-    format_label_value "Game Mode:" "$game_mode"
-    format_label_value "Map:" "$map"
-    format_label_value "Time of Day:" "$day"
-    format_label_value "Players:" "$curr_players / $max_players"
-    format_label_value "BattlEye:" "$battleye_status"
-    format_label_value "Server Version:" "${major}.${minor}"
-    format_label_value "Public Address:" "${server_ip}:${bind_port}"
-    format_label_value "Bind Address:" "${bind}"
-    format_label_value "Active Mods:" "$mods"
-
-    echo ""
-    format_label_value "Server Status:" "$(print_status_box "ONLINE" "green")"
+    local mods=$(echo "$serv" | jq -r '.attributes.ENABLEDMODS_s')
+    DETAILED_ACTIVE_MODS="None"
+    [[ "$mods" != "null" && -n "$mods" ]] && DETAILED_ACTIVE_MODS="$mods"
 
     return 0
+}
+
+# Function to display detailed status using EOS API
+get_detailed_status() {
+    # Get detailed status information
+    set_detailed_status_variables
+    local status_result=$?
+
+    # Print the header
+    print_script_header "ARK Server Status (Detailed)"
+
+    # Process is not running
+    if [[ "$SERVER_STATUS" == "OFFLINE" ]]; then
+        format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
+        echo ""
+        format_label_value "Process:" "$STATUS_NOTE"
+        return 1
+    fi
+
+    # Server is running, show process info
+    format_label_value "Process ID:" "$PROCESS_ID"
+    format_label_value "Server Type:" "$SERVER_TYPE"
+
+    # Show port info if available
+    if [[ -n "$LISTENING_PORT" ]]; then
+        format_label_value "Listening Port:" "$LISTENING_PORT"
+    else
+        format_label_value "Network Status:" "$(print_status_box "NOT LISTENING" "yellow")"
+        format_label_value "Expected Port:" "$SERVER_PORT"
+        format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
+        echo ""
+        format_label_value "Note:" "$STATUS_NOTE"
+        return 2
+    fi
+
+    # Show RCON status
+    format_label_value "RCON Status:" "$(print_status_box "$RCON_STATUS" "$RCON_STATUS_COLOR")"
+
+    # If we're still here, show online status and players count
+    format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
+    format_label_value "EOS Status:" "$(print_status_box "$DETAILED_EOS_STATUS" "$DETAILED_EOS_COLOR")"
+
+    # Check if this is a first-run situation for EOS setup
+    if [[ "$DETAILED_EOS_STATUS" == "NOT CONFIGURED" ]]; then
+        format_label_value "Online Players:" "$PLAYER_COUNT"
+        echo ""
+        format_label_value "Note:" "$DETAILED_NOTE"
+
+        # Prompt for first-time setup
+        echo ""
+        full_status_first_run
+        if [[ $? -eq 0 ]]; then
+            # If setup succeeded, retry with new credentials
+            set_detailed_status_variables
+
+            # Only show detailed info if we connected successfully
+            if [[ "$DETAILED_EOS_STATUS" == "CONNECTED" ]]; then
+                # Clear screen and redisplay
+                clear
+                get_detailed_status
+                return $?
+            fi
+        fi
+
+        return 0
+    elif [[ "$DETAILED_EOS_STATUS" == "INVALID CREDENTIALS" || "$DETAILED_EOS_STATUS" == "AUTH FAILED" || "$DETAILED_EOS_STATUS" == "API ERROR" ]]; then
+        # For credential issues, try regenerating silently
+        format_label_value "Online Players:" "$PLAYER_COUNT"
+        echo ""
+        format_label_value "Note:" "$DETAILED_NOTE"
+
+        # Try regenerating credentials
+        echo ""
+        print_warning "⚠️ Attempting to regenerate EOS credentials..."
+        setup_eos_credentials
+
+        if [[ $? -eq 0 ]]; then
+            # If regeneration succeeded, retry with new credentials
+            set_detailed_status_variables
+
+            # Only show detailed info if we connected successfully
+            if [[ "$DETAILED_EOS_STATUS" == "CONNECTED" ]]; then
+                # Clear screen and redisplay
+                clear
+                get_detailed_status
+                return $?
+            fi
+        fi
+
+        return 0
+    fi
+
+    # Show player count (from detailed if available, otherwise from basic)
+    if [[ "$DETAILED_EOS_STATUS" == "CONNECTED" ]]; then
+        format_label_value "Online Players:" "$DETAILED_PLAYERS_RATIO"
+
+        # Show detailed server information
+        echo ""
+        format_label_value "Server Name:" "$DETAILED_SERVER_NAME"
+        format_label_value "Game Mode:" "$DETAILED_GAME_MODE"
+        format_label_value "Map:" "$DETAILED_MAP"
+        format_label_value "Day:" "$DETAILED_TIME_OF_DAY"
+        format_label_value "BattlEye:" "$DETAILED_BATTLEYE"
+        format_label_value "Server Version:" "$DETAILED_SERVER_VERSION"
+        format_label_value "Public Address:" "$DETAILED_PUBLIC_ADDRESS"
+        format_label_value "Bind Address:" "$DETAILED_BIND_ADDRESS"
+        format_label_value "Active Mods:" "$DETAILED_ACTIVE_MODS"
+    else
+        format_label_value "Online Players:" "$PLAYER_COUNT"
+
+        # Show note if we couldn't get detailed info
+        if [[ -n "$DETAILED_NOTE" ]]; then
+            echo ""
+            format_label_value "Note:" "$DETAILED_NOTE"
+        fi
+    fi
+
+    return $status_result
 }
 
 # =============================================================================

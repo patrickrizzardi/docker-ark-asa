@@ -85,11 +85,17 @@ loading() {
         SPINNER_OUTPUT=$(<"$tmp_out")
         rm -f "$tmp_out"
 
-        if [ $status -eq 0 ]; then
-            echo -e "${GREEN}✅ ${message} completed${NC}"
-        else
-            echo -e "${RED}❌ ${message} failed${NC}"
+        # Only display completion message if not in silent mode
+        if [ "$COMMON_SILENT" != "true" ]; then
+            if [ $status -eq 0 ]; then
+                echo -e "${GREEN}✅ ${message} completed${NC}"
+            else
+                echo -e "${RED}❌ ${message} failed${NC}"
+            fi
         fi
+
+        # Output the command result to stdout so it can be captured by command substitution
+        echo "$SPINNER_OUTPUT"
 
         return $status
 
