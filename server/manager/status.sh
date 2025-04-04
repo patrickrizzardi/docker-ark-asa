@@ -418,10 +418,12 @@ set_detailed_status_variables() {
     local basic_status=$?
 
     # Bail out if server is not running or not listening
-    [[ "$SERVER_STATUS" == "OFFLINE" || -z "$LISTENING_PORT" ]] && return $basic_status
+    if equals "$SERVER_STATUS" "OFFLINE" || is_empty "$LISTENING_PORT"; then
+        return $basic_status
+    fi
 
     # Check if EOS credentials exist
-    if [[ ! -f "$EOS_FILE" ]]; then
+    if [ ! -f "$EOS_FILE" ]; then
         DETAILED_EOS_STATUS="NOT CONFIGURED"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Epic Online Services credentials not found. Run with --full to set up."
@@ -432,7 +434,7 @@ set_detailed_status_variables() {
     local creds=$(cat "$EOS_FILE" | cut -d, -f1)
     local id=$(cat "$EOS_FILE" | cut -d, -f2)
 
-    if [[ -z "$creds" || -z "$id" ]]; then
+    if is_empty "$creds" || is_empty "$id"; then
         DETAILED_EOS_STATUS="INVALID CREDENTIALS"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Epic Online Services credentials format is invalid. Run with --full to regenerate."
@@ -445,11 +447,13 @@ set_detailed_status_variables() {
     # Try multiple IP detection services
     for ip_service in "https://ifconfig.me/ip" "https://api.ipify.org" "https://icanhazip.com"; do
         ip=$(curl -s --max-time 5 "$ip_service" | tr -d '[:space:]')
-        [[ -n "$ip" && "$ip" =~ ^[0-9.]+$ ]] && break
+        if ! is_empty "$ip" && [[ "$ip" =~ ^[0-9.]+$ ]]; then
+            break
+        fi
     done
 
     # Verify we have a valid IP
-    if [[ -z "$ip" || ! "$ip" =~ ^[0-9.]+$ ]]; then
+    if is_empty "$ip" || ! [[ "$ip" =~ ^[0-9.]+$ ]]; then
         DETAILED_EOS_STATUS="IP DETECTION FAILED"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Failed to determine public IP address - cannot query EOS API"
@@ -460,7 +464,7 @@ set_detailed_status_variables() {
     local oauth_cmd="curl -s -m 10 -H 'Content-Type: application/x-www-form-urlencoded' -H 'Accept: application/json' -H \"Authorization: Basic ${creds}\" -X POST https://api.epicgames.dev/auth/v1/oauth/token -d \"grant_type=client_credentials&deployment_id=${id}\""
     local oauth=$(eval "$oauth_cmd")
 
-    if [[ -z "$oauth" || "$oauth" == *"error"* ]]; then
+    if is_empty "$oauth" || contains "$oauth" "error"; then
         DETAILED_EOS_STATUS="AUTH FAILED"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Failed to authenticate with Epic Online Services API"
@@ -469,7 +473,7 @@ set_detailed_status_variables() {
 
     local token=$(echo "$oauth" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//;s/"//')
 
-    if [[ -z "$token" ]]; then
+    if is_empty "$token"; then
         DETAILED_EOS_STATUS="TOKEN FAILED"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Failed to extract access token from OAuth response"
@@ -508,7 +512,7 @@ EOF
     rm -f "$temp_json"
 
     # Check for errors
-    if [[ "$res" == *"errorCode"* ]]; then
+    if contains "$res" "errorCode"; then
         DETAILED_EOS_STATUS="API ERROR"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="EOS API returned an error"
@@ -518,7 +522,7 @@ EOF
     # Extract server based on port
     local serv=$(echo "$res" | jq -r ".sessions[] | select(.attributes.ADDRESSBOUND_s | contains(\":${SERVER_PORT}\"))")
 
-    if [[ -z "$serv" ]]; then
+    if is_empty "$serv"; then
         DETAILED_EOS_STATUS="SERVER NOT FOUND"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Server not found in EOS listings (may be starting up or not registered)"
@@ -538,7 +542,9 @@ EOF
 
     local battleye=$(echo "$serv" | jq -r '.attributes.SERVERUSESBATTLEYE_b')
     DETAILED_BATTLEYE="Disabled"
-    [[ "$battleye" == "true" ]] && DETAILED_BATTLEYE="Enabled"
+    if equals "$battleye" "true"; then
+        DETAILED_BATTLEYE="Enabled"
+    fi
 
     local server_ip=$(echo "$serv" | jq -r '.attributes.ADDRESS_s')
     local bind=$(echo "$serv" | jq -r '.attributes.ADDRESSBOUND_s')
@@ -555,11 +561,15 @@ EOF
 
     local pve=$(echo "$serv" | jq -r '.attributes.SESSIONISPVE_l')
     DETAILED_GAME_MODE="PvP"
-    [[ "$pve" == "1" ]] && DETAILED_GAME_MODE="PvE"
+    if equals "$pve" "1"; then
+        DETAILED_GAME_MODE="PvE"
+    fi
 
     local mods=$(echo "$serv" | jq -r '.attributes.ENABLEDMODS_s')
     DETAILED_ACTIVE_MODS="None"
-    [[ "$mods" != "null" && -n "$mods" ]] && DETAILED_ACTIVE_MODS="$mods"
+    if ! equals "$mods" "null" && ! is_empty "$mods"; then
+        DETAILED_ACTIVE_MODS="$mods"
+    fi
 
     return 0
 }
@@ -574,7 +584,7 @@ get_detailed_status() {
     print_script_header "ARK Server Status (Detailed)"
 
     # Process is not running
-    if [[ "$SERVER_STATUS" == "OFFLINE" ]]; then
+    if equals "$SERVER_STATUS" "OFFLINE"; then
         format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
         echo ""
         format_label_value "Process:" "$STATUS_NOTE"
@@ -586,7 +596,7 @@ get_detailed_status() {
     format_label_value "Server Type:" "$SERVER_TYPE"
 
     # Show port info if available
-    if [[ -n "$LISTENING_PORT" ]]; then
+    if ! is_empty "$LISTENING_PORT"; then
         format_label_value "Listening Port:" "$LISTENING_PORT"
     else
         format_label_value "Network Status:" "$(print_status_box "NOT LISTENING" "yellow")"
@@ -605,7 +615,7 @@ get_detailed_status() {
     format_label_value "EOS Status:" "$(print_status_box "$DETAILED_EOS_STATUS" "$DETAILED_EOS_COLOR")"
 
     # Check if this is a first-run situation for EOS setup
-    if [[ "$DETAILED_EOS_STATUS" == "NOT CONFIGURED" ]]; then
+    if equals "$DETAILED_EOS_STATUS" "NOT CONFIGURED"; then
         format_label_value "Online Players:" "$PLAYER_COUNT"
         echo ""
         format_label_value "Note:" "$DETAILED_NOTE"
@@ -613,12 +623,12 @@ get_detailed_status() {
         # Prompt for first-time setup
         echo ""
         full_status_first_run
-        if [[ $? -eq 0 ]]; then
+        if [ $? -eq 0 ]; then
             # If setup succeeded, retry with new credentials
             set_detailed_status_variables
 
             # Only show detailed info if we connected successfully
-            if [[ "$DETAILED_EOS_STATUS" == "CONNECTED" ]]; then
+            if equals "$DETAILED_EOS_STATUS" "CONNECTED"; then
                 # Clear screen and redisplay
                 clear
                 get_detailed_status
@@ -627,7 +637,7 @@ get_detailed_status() {
         fi
 
         return 0
-    elif [[ "$DETAILED_EOS_STATUS" == "INVALID CREDENTIALS" || "$DETAILED_EOS_STATUS" == "AUTH FAILED" || "$DETAILED_EOS_STATUS" == "API ERROR" ]]; then
+    elif contains "$DETAILED_EOS_STATUS" "INVALID CREDENTIALS" || equals "$DETAILED_EOS_STATUS" "AUTH FAILED" || equals "$DETAILED_EOS_STATUS" "API ERROR"; then
         # For credential issues, try regenerating silently
         format_label_value "Online Players:" "$PLAYER_COUNT"
         echo ""
@@ -638,12 +648,12 @@ get_detailed_status() {
         print_warning "⚠️ Attempting to regenerate EOS credentials..."
         setup_eos_credentials
 
-        if [[ $? -eq 0 ]]; then
+        if [ $? -eq 0 ]; then
             # If regeneration succeeded, retry with new credentials
             set_detailed_status_variables
 
             # Only show detailed info if we connected successfully
-            if [[ "$DETAILED_EOS_STATUS" == "CONNECTED" ]]; then
+            if equals "$DETAILED_EOS_STATUS" "CONNECTED"; then
                 # Clear screen and redisplay
                 clear
                 get_detailed_status
@@ -655,7 +665,7 @@ get_detailed_status() {
     fi
 
     # Show player count (from detailed if available, otherwise from basic)
-    if [[ "$DETAILED_EOS_STATUS" == "CONNECTED" ]]; then
+    if equals "$DETAILED_EOS_STATUS" "CONNECTED"; then
         format_label_value "Online Players:" "$DETAILED_PLAYERS_RATIO"
 
         # Show detailed server information
@@ -673,7 +683,7 @@ get_detailed_status() {
         format_label_value "Online Players:" "$PLAYER_COUNT"
 
         # Show note if we couldn't get detailed info
-        if [[ -n "$DETAILED_NOTE" ]]; then
+        if ! is_empty "$DETAILED_NOTE"; then
             echo ""
             format_label_value "Note:" "$DETAILED_NOTE"
         fi
@@ -716,11 +726,11 @@ main() {
     check_required_env REQUIRED_VARS || exit 1
 
     # Display status based on mode
-    [[ "$SHOW_FULL_STATUS" == "yes" ]] && {
+    if equals "$SHOW_FULL_STATUS" "yes"; then
         get_detailed_status
-    } || {
+    else
         get_basic_status
-    }
+    fi
 
     exit $?
 }
