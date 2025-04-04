@@ -4,23 +4,27 @@ globs:
 alwaysApply: true
 ---
 # Bad examples
+
 #!/bin/bash
 touch tempfile.txt
 echo "data" > tempfile.txt
+
 # Script ends without cleanup
 
 #!/bin/bash
 exec 3> output.log
 echo "logging" >&3
+
 # File descriptor left open
 
 # Good examples
+
 #!/bin/bash
 cleanup() {
-    local exit_code=$?
-    rm -f tempfile.txt
-    print_info "Exiting with code: $exit_code"
-    exit $exit_code
+local exit_code=$?
+rm -f tempfile.txt
+print_info "Exiting with code: $exit_code"
+exit $exit_code
 }
 trap cleanup EXIT INT TERM
 
@@ -29,10 +33,10 @@ echo "data" > tempfile.txt
 
 #!/bin/bash
 cleanup() {
-    local exit_code=$?
-    exec 3>&-
-    print_info "Closing file descriptor, exit code: $exit_code"
-    exit $exit_code
+local exit_code=$?
+exec 3>&-
+print_info "Closing file descriptor, exit code: $exit_code"
+exit $exit_code
 }
 trap cleanup EXIT INT TERM
 
@@ -40,4 +44,5 @@ exec 3> output.log
 echo "logging" >&3
 
 # Rule name: require-cleanup-trap
-# Description: Enforces presence of cleanup function and trap setup for proper resource management
+
+# Description: Enforces presence of cleanup function and trap setup for proper resource management. This is only neeccessary when temp files are made.

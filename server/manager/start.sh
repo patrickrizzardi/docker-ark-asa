@@ -11,8 +11,7 @@
 # =============================================================================
 
 # Load environment variables and utilities
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/common.sh"
+source "$MANAGER_DIR/utils/common.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -77,20 +76,6 @@ set_default_values() {
 # UTILITY FUNCTIONS
 # =============================================================================
 
-# Function to create server start flag file
-create_start_flag() {
-    echo "$(date) - Server start initiated by PID $$" >"$SERVER_START_FLAG"
-    print_success "✅ Created server start flag: $SERVER_START_FLAG"
-}
-
-# Function to remove server start flag file
-remove_start_flag() {
-    if [[ -f "$SERVER_START_FLAG" ]]; then
-        rm -f "$SERVER_START_FLAG"
-        print_success "✅ Removed server start flag"
-    fi
-}
-
 # Function to verify server has started successfully
 verify_server_started() {
     local timeout=$1
@@ -104,8 +89,8 @@ verify_server_started() {
         local ark_server_pid=$(get_ark_server_pid)
         if [[ "$ark_server_pid" != "0" ]]; then
             # Check if the server is actually responsive using RCON
-            if [[ -n "$RCON_PORT" && -n "$ARK_ADMIN_PASSWORD" ]]; then
-                show_spinner "Checking server responsiveness via RCON... (${elapsed}s/${timeout}s)"
+            if [[ -n "$NETWORK_RCON_PORT" && -n "$SERVER_ADMIN_PASSWORD" ]]; then
+                loading "Checking server responsiveness via RCON... (${elapsed}s/${timeout}s)"
                 local rcon_output=$(ark rcon info --silent 2>&1)
                 local rcon_status=$?
 
@@ -116,21 +101,21 @@ verify_server_started() {
                 fi
             else
                 # If RCON is not available, just check if process exists
-                if is_process_running "ArkAscendedServer.exe" || is_process_running "AsaApiLoader.exe"; then
-                    # Check if server is listening on its port
-                    show_spinner "Checking if server is listening on port ${SERVER_PORT}... (${elapsed}s/${timeout}s)"
 
-                    if ss -tuln | grep -q ":${SERVER_PORT}"; then
-                        echo "" # Add a newline after the spinner
-                        print_success "✅ Server verified as listening on port ${SERVER_PORT}"
-                        return 0
-                    fi
+                # Check if server is listening on its port
+                loading "Checking if server is listening on port ${SERVER_PORT}... (${elapsed}s/${timeout}s)"
+
+                if ss -tuln | grep -q ":${SERVER_PORT}"; then
+                    echo "" # Add a newline after the spinner
+                    print_success "✅ Server verified as listening on port ${SERVER_PORT}"
+                    return 0
                 fi
+
             fi
         fi
 
         # Server not yet fully started, wait and try again
-        show_spinner "Waiting for server to start... (${elapsed}s/${timeout}s)"
+        loading "Waiting for server to start... (${elapsed}s/${timeout}s)"
         sleep $check_interval
         elapsed=$((elapsed + check_interval))
     done
@@ -184,7 +169,7 @@ cleanup() {
     local exit_code=$?
 
     # Remove server start flag
-    remove_start_flag
+    remove_flag "start"
 
     print_info "Start script exiting with code: $exit_code"
     exit $exit_code
@@ -196,7 +181,7 @@ cleanup() {
 
 # Prepare environment
 prepare_environment() {
-    print_header "🔧 Preparing Environment"
+    print_script_header "🔧 Preparing Environment"
 
     # Verify the Wine environment is set correctly
     print_info "Verifying Wine environment..."
@@ -243,10 +228,10 @@ start_server() {
     # Determine which executable to use based on server type
     if [ "$server_type" = "api" ]; then
         executable="AsaApiLoader.exe"
-        print_header "🚀 Starting ARK API Server"
+        print_script_header "🚀 Starting ARK API Server"
     else
         executable="ArkAscendedServer.exe"
-        print_header "🚀 Starting ARK Game Server"
+        print_script_header "🚀 Starting ARK Game Server"
     fi
 
     local executable_path="${ARK_DIR}/ShooterGame/Binaries/Win64/${executable}"
@@ -257,9 +242,6 @@ start_server() {
         print_info "Please verify your ARK installation directory."
         return 1
     fi
-
-    # Create a server start flag
-    create_start_flag
 
     # Build the command string with server parameters
     local cmd="${SERVER_MAP}?listen?SessionName=${SERVER_SESSION_NAME}?Port=${NETWORK_SERVER_PORT}"
@@ -332,8 +314,9 @@ start_server() {
         echo "=== Server start at $(date) ===" >"${WINE_LOG_FILE}"
     fi
 
-    # Start the server in the background
+    # Start the server in the background and create a server start flag
     print_info "Starting server process..."
+    create_flag "start"
     nohup wine64 "${executable_path}" "${cmd}" ${flags} >"${WINE_LOG_FILE}" 2>&1 &
 
     local wine_pid=$!
@@ -364,7 +347,7 @@ start_server() {
 
     print_success "✅ Server successfully started"
     # Remove the starting flag as server is now running
-    remove_start_flag
+    remove_flag "start"
     return 0
 }
 
@@ -377,7 +360,7 @@ wait_for_initialization() {
     local check_interval=5
 
     while [ $wait_time -lt $SYSTEM_STARTUP_WAIT ]; do
-        show_spinner "Waiting for server initialization... (${wait_time}s/${SYSTEM_STARTUP_WAIT}s)"
+        loading "Waiting for server initialization... (${wait_time}s/${SYSTEM_STARTUP_WAIT}s)"
         sleep $check_interval
         wait_time=$((wait_time + check_interval))
 
@@ -497,6 +480,9 @@ main() {
     print_info "To check server status, use: \`ark status\`"
     print_info "To stop the server, use: \`ark stop\`"
     print_info "You can safely exit this terminal session."
+
+    # Remove the shutdown flag so the monitor can detect the server is running
+    remove_flag "shutdown"
 
     # Explicitly exit with success
     exit 0

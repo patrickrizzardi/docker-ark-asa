@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO
 #
 # ARK Server Log Tail Utility
 # Shows all server logs in one consolidated view with color coding
@@ -11,9 +12,6 @@
 #   --main        - Show only main server log
 #   --wine        - Show only Wine logs
 #   --monitor     - Show only monitor logs
-#   --lines N     - Show the last N lines (default: 100)
-#   --follow      - Follow the log output in real-time (default)
-#   --no-follow   - Don't follow logs, just show and exit
 #
 # =============================================================================
 

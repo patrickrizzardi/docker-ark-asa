@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO
 
 # ARK Server Initialization Script
 # Main entrypoint for ARK server container
@@ -8,16 +9,10 @@ set -e
 
 # Define absolute paths for utilities
 UTILS_PATH="${MANAGER_DIR}/utils"
+source "${UTILS_PATH}/common.sh"
 
 # Set executable flag on all utils just to be sure
 chmod +x ${UTILS_PATH}/*.sh 2>/dev/null || true
-
-# Load utilities with absolute paths
-source "${UTILS_PATH}/colorPrinter.sh"
-source "${UTILS_PATH}/apiManager.sh"
-source "${UTILS_PATH}/logManager.sh"
-source "${UTILS_PATH}/envManager.sh"
-source "${UTILS_PATH}/pluginManager.sh"
 
 # Process command line arguments
 process_command_line_args() {
@@ -29,9 +24,25 @@ process_command_line_args() {
     return 1
 }
 
+setup_shutdown_handlers() {
+    print_info "Setting up shutdown handlers..."
+
+    # Function to handle shutdown signals
+    shutdown_handler() {
+        print_info "Received shutdown signal. Stopping server..."
+        "${MANAGER_DIR}/stop.sh"
+        exit 0
+    }
+
+    # Set up trap for common signals
+    trap shutdown_handler SIGTERM SIGINT
+
+    print_success "Shutdown handlers configured"
+}
+
 # Main execution function
 main() {
-    print_header "🚀 Starting ARK Server Container"
+    print_script_header "🚀 Starting ARK Server Container"
 
     # If command is provided, run it and exit
     if process_command_line_args "$@"; then
@@ -55,7 +66,7 @@ main() {
     print_info "Checking plugins..."
     install_plugins "$ARK_DIR"
 
-    print_header "✅ Server initialization complete"
+    print_script_header "✅ Server initialization complete"
     print_info "Starting server..."
     "${MANAGER_DIR}/start.sh"
 

@@ -1,5 +1,5 @@
 # Helper function to collect missing environment variables
-collect_missing_vars() {
+_collect_missing_vars() {
     local -n vars_array=$1
     local -n missing_list_ref=$2
 
@@ -34,7 +34,7 @@ check_required_env() {
     print_info "Checking required environment variables..."
 
     local missing_vars=""
-    collect_missing_vars vars missing_vars
+    _collect_missing_vars vars missing_vars
     local missing_status=$?
 
     if [ $missing_status -eq 1 ]; then

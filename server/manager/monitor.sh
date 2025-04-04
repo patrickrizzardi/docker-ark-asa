@@ -6,8 +6,7 @@
 # =============================================================================
 
 # Load environment variables and utilities
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/common.sh"
+source "$(dirname "$0")/common.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -21,36 +20,35 @@ declare -a MONITOR_REQUIRED_VARS=(
 
 # Optional environment variables
 declare -a MONITOR_OPTIONAL_VARS=(
-    "LOG_FILE"              # Main server log file
-    "API_LOG_FILE"          # API log file (if using API)
-    "WINE_LOG_FILE"         # Wine debug log file
-    "MONITOR_LOG"           # Monitor log file
-    "INITIAL_STARTUP_DELAY" # Wait time before monitoring starts (seconds)
-    "SYSTEM_CHECK_INTERVAL" # How often to check server (seconds)
-    "RESTART_WAIT"          # How long to wait after restart (seconds)
-    "STALE_LOCK_TIME"       # Minutes before considering a lock stale
-    "RCON_PORT"             # RCON port for server status checks (optional)
-    "ARK_ADMIN_PASSWORD"    # Admin password for RCON checks (optional)
-    "UPDATE_CHECK_INTERVAL" # Hours between update checks
-    "MAX_RESTART_ATTEMPTS"  # Maximum restart attempts before giving up
+    "LOG_FILE"                     # Main server log file
+    "API_LOG_FILE"                 # API log file (if using API)
+    "WINE_LOG_FILE"                # Wine debug log file
+    "MONITOR_LOG"                  # Monitor log file
+    "SYSTEM_INITIAL_STARTUP_DELAY" # Wait time before monitoring starts (seconds)
+    "SYSTEM_CHECK_INTERVAL"        # How often to check server (seconds)
+    "SYSTEM_RESTART_WAIT"          # How long to wait after restart (seconds)
+    "SYSTEM_STALE_LOCK_TIME"       # Minutes before considering a lock stale
+    "NETWORK_RCON_PORT"            # RCON port for server status checks (optional)
+    "SERVER_ADMIN_PASSWORD"        # Admin password for RCON checks (optional)
+    "SYSTEM_UPDATE_CHECK_INTERVAL" # Hours between update checks
+    "SYSTEM_MAX_RESTART_ATTEMPTS"  # Maximum restart attempts before giving up
+    "SYSTEM_STARTUP_WAIT"          # Time to wait for server to initialize (seconds)
 )
 
 # Set default values for optional variables
 set_monitor_defaults() {
     # Default values for monitoring
-    INITIAL_STARTUP_DELAY=${INITIAL_STARTUP_DELAY:-300} # Wait time before monitoring starts (seconds)
-    RESTART_WAIT=${RESTART_WAIT:-120}                   # How long to wait after restart (seconds)
-    STALE_LOCK_TIME=${STALE_LOCK_TIME:-30}              # Minutes before considering a lock stale
-    UPDATE_CHECK_INTERVAL=${UPDATE_CHECK_INTERVAL:-12}  # Hours between update checks (default 12 hours)
-    MAX_RESTART_ATTEMPTS=${MAX_RESTART_ATTEMPTS:-3}     # Max restart attempts before giving up
-    SYSTEM_CHECK_INTERVAL=${SYSTEM_CHECK_INTERVAL:-30}  # How often to check server (seconds)
+    SYSTEM_INITIAL_STARTUP_DELAY=${SYSTEM_INITIAL_STARTUP_DELAY:-300} # Wait time before monitoring starts (seconds)
+    SYSTEM_RESTART_WAIT=${SYSTEM_RESTART_WAIT:-120}                   # How long to wait after restart (seconds)
+    SYSTEM_STALE_LOCK_TIME=${SYSTEM_STALE_LOCK_TIME:-30}              # Minutes before considering a lock stale
+    SYSTEM_UPDATE_CHECK_INTERVAL=${SYSTEM_UPDATE_CHECK_INTERVAL:-12}  # Hours between update checks (default 12 hours)
+    SYSTEM_MAX_RESTART_ATTEMPTS=${SYSTEM_MAX_RESTART_ATTEMPTS:-3}     # Max restart attempts before giving up
+    SYSTEM_CHECK_INTERVAL=${SYSTEM_CHECK_INTERVAL:-30}                # How often to check server (seconds)
+    SYSTEM_STARTUP_WAIT=${SYSTEM_STARTUP_WAIT:-60}                    # Time to wait for server to initialize (seconds)
 
     # Set default log file paths if not specified
     LOG_FILE=${LOG_FILE:-"${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log"}
     MONITOR_LOG=${MONITOR_LOG:-"${ARK_DIR}/logs/server_monitor.log"}
-
-    # Custom file for restart timestamp tracking - not in common.sh
-    RESTART_TIMESTAMP_FILE="${ARK_DIR}/restart_timestamp.tmp"
 
     # Create log directory if it doesn't exist
     mkdir -p "$(dirname "$MONITOR_LOG")" 2>/dev/null || true
@@ -66,41 +64,27 @@ cleanup() {
     exit 0
 }
 
-# Function to check if an update is in progress
-is_server_updating() {
-    if [[ ! -f "$SERVER_UPDATE_FLAG" ]]; then
-        return 1
-    fi
-
-    # Check if it's a stale lock (more than configured minutes old)
-    if [[ $(find "$SERVER_UPDATE_FLAG" -mmin +${STALE_LOCK_TIME} -print) ]]; then
-        print_warning "⚠️ Found stale update lock, removing it"
-        rm -f "$SERVER_UPDATE_FLAG"
-        return 1
-    fi
-
-    # Lock exists and is not stale
-    return 0
-}
-
 # Check for restart timeout (nuclear option)
 check_restart_timeout() {
+    local restart_timestamp_file="${ARK_DIR}/restart_timestamp.tmp"
+
     # If restart flag doesn't exist, remove timestamp file and return
-    if [[ ! -f "$SERVER_RESTART_FLAG" ]]; then
-        if [[ -f "$RESTART_TIMESTAMP_FILE" ]]; then
-            rm -f "$RESTART_TIMESTAMP_FILE"
+    if ! flag_exists "restart"; then
+        print_warning "⚠️ Restart flag not found, removing timestamp file"
+        if [[ -f "$restart_timestamp_file" ]]; then
+            rm -f "$restart_timestamp_file"
         fi
         return 0
     fi
 
     # If timestamp file doesn't exist, create it with current time
-    if [[ ! -f "$RESTART_TIMESTAMP_FILE" ]]; then
-        date +%s >"$RESTART_TIMESTAMP_FILE"
+    if [[ ! -f "$restart_timestamp_file" ]]; then
+        date +%s >"$restart_timestamp_file"
         return 0
     fi
 
     # Check how long it's been since the restart was initiated
-    local start_time=$(cat "$RESTART_TIMESTAMP_FILE")
+    local start_time=$(cat "$restart_timestamp_file")
     local current_time=$(date +%s)
     local elapsed_time=$((current_time - start_time))
 
@@ -114,19 +98,20 @@ check_restart_timeout() {
     print_warning "⚠️ Forcing aggressive server restart"
 
     # Kill any running server processes
-    pkill -9 -f "ArkAscendedServer.exe" >/dev/null 2>&1 || true
-    pkill -9 -f "AsaApiLoader.exe" >/dev/null 2>&1 || true
+    ark stop --force || print_error "❌ Failed to forcefully terminate server process"
 
     # Remove all flag files to ensure clean restart
-    rm -f "$SERVER_RESTART_FLAG" 2>/dev/null || true
-    rm -f "$SERVER_START_FLAG" 2>/dev/null || true
-    rm -f "$RESTART_TIMESTAMP_FILE" 2>/dev/null || true
+    remove_flag "restart"
+    remove_flag "start"
+    remove_flag "save"
+    remove_flag "stop"
+    rm -f "$restart_timestamp_file" 2>/dev/null || true
 
     # Wait a moment for processes to terminate
     sleep 5
 
     # Attempt clean restart
-    "${MANAGER_DIR}/start.sh" || print_error "❌ Even aggressive restart failed!"
+    ark start || print_error "❌ Even aggressive restart failed!"
 
     return 0
 }
@@ -157,7 +142,7 @@ check_for_first_launch_error() {
     # Check if server process crashed without creating logs
     if [[ -n "$LOG_FILE" ]] && [[ ! -f "$LOG_FILE" ]]; then
         # Check if server was supposed to be running but no logs were created
-        if [[ ! -f "$SERVER_START_FLAG" ]]; then
+        if ! flag_exists "start"; then
             return 1
         fi
 
@@ -165,7 +150,7 @@ check_for_first_launch_error() {
             return 1
         fi
 
-        local flag_time=$(stat -c %Y "$SERVER_START_FLAG" 2>/dev/null || echo 0)
+        local flag_time=$(get_flag_timestamp "start")
         local current_time=$(date +%s)
         local flag_age=$((current_time - flag_time))
 
@@ -182,32 +167,30 @@ check_for_first_launch_error() {
 
 # Handle recovery from first-launch errors
 handle_first_launch_recovery() {
-    print_header "⚙️ First Launch Recovery Procedure"
+    print_script_header "⚙️ First Launch Recovery Procedure"
 
     print_info "Performing first-launch recovery..."
 
     # Kill any stuck processes
     print_info "Stopping any running server processes..."
-    pkill -9 -f "ArkAscendedServer.exe" >/dev/null 2>&1 || true
-    pkill -9 -f "AsaApiLoader.exe" >/dev/null 2>&1 || true
-    pkill -9 -f "wine" >/dev/null 2>&1 || true
+    ark stop --force || print_error "❌ Failed to forcefully terminate server process"
 
     # Remove flag files
-    rm -f "$SERVER_START_FLAG" 2>/dev/null || true
-    rm -f "$SERVER_RESTART_FLAG" 2>/dev/null || true
+    remove_flag "start"
+    remove_flag "restart"
 
     # Create a marker file to prevent repeated recovery attempts
-    touch "${ARK_DIR}/first_launch_recovery_completed"
+    create_flag "first_launch_recovery_completed"
 
     # Wait a moment
     sleep 5
 
     # Restart the server with special flags if needed
     print_info "Restarting server after recovery..."
-    "${MANAGER_DIR}/start.sh" || print_error "❌ Failed to restart after recovery"
+    ark start || print_error "❌ Failed to restart after recovery"
 
     print_success "✅ First-launch recovery procedure completed"
-    sleep 60 # Give the server time to start
+    sleep SYSTEM_STARTUP_WAIT
 }
 
 # Function to check if it's time to check for updates
@@ -215,7 +198,7 @@ is_update_check_due() {
     local should_display=${1:-"true"} # Whether to display status messages
 
     # If update checking is disabled, return early
-    if [[ -z "$UPDATE_CHECK_INTERVAL" || "$UPDATE_CHECK_INTERVAL" == "0" ]]; then
+    if [[ -z "$SYSTEM_UPDATE_CHECK_INTERVAL" || "$SYSTEM_UPDATE_CHECK_INTERVAL" == "0" ]]; then
         [[ "$should_display" == "true" ]] && print_info "Update checking is disabled"
         return 1
     fi
@@ -229,7 +212,7 @@ is_update_check_due() {
     # Read the last check time
     local last_check_time=$(cat "$last_check_file")
     local current_time=$(date +%s)
-    local check_interval_seconds=$((UPDATE_CHECK_INTERVAL * 3600)) # Convert hours to seconds
+    local check_interval_seconds=$((SYSTEM_UPDATE_CHECK_INTERVAL * 3600)) # Convert hours to seconds
 
     # If not enough time has passed, return early
     if [[ $((current_time - last_check_time)) -le $check_interval_seconds ]]; then
@@ -260,14 +243,8 @@ check_for_updates() {
     # Update the last check time
     echo "$(date +%s)" >"${ARK_DIR}/last_update_check.txt"
 
-    # Check if update script exists
-    if [[ ! -f "${MANAGER_DIR}/update.sh" ]]; then
-        [[ "$should_display" == "true" ]] && print_warning "⚠️ Update script not found at ${MANAGER_DIR}/update.sh"
-        return 1
-    fi
-
     # Call the update script with check-only mode
-    if ! "${MANAGER_DIR}/update.sh" --check-only; then
+    if ! ark update --check-only; then
         [[ "$should_display" == "true" ]] && print_success "✅ No update needed"
         return 1
     fi
@@ -282,7 +259,7 @@ check_for_updates() {
 
 # Function for more advanced server health check
 check_server_health() {
-    local ark_server_pid=$1
+    local ark_server_pid=$(get_ark_server_pid)
 
     # Skip health check if no PID provided
     if [[ -z "$ark_server_pid" || "$ark_server_pid" == "0" ]]; then
@@ -430,15 +407,15 @@ monitor_loop() {
         # Check for restart timeouts
         check_restart_timeout
 
-        # If the no_restart flag is present, skip server checks
-        if [[ -f "$SERVER_STOP_FLAG" ]]; then
+        # If the shutdown flag is present, pause monitoring
+        if flag_exists "shutdown"; then
             print_info "Server shutdown flag present, monitoring paused"
             sleep $SYSTEM_CHECK_INTERVAL
             continue
         fi
 
         # If server is updating, wait and skip rest of checks
-        if is_server_updating; then
+        if flag_exists "update"; then
             print_info "Server update in progress, waiting..."
             sleep $SYSTEM_CHECK_INTERVAL
             continue
@@ -465,7 +442,7 @@ monitor_loop() {
 
         if [[ "$ark_server_pid" == "0" ]]; then
             # Handle case when server is not running
-            local result=$(handle_server_not_running "$restart_attempts" "$MAX_RESTART_ATTEMPTS" "$last_restart_time" "$restart_cooldown")
+            local result=$(handle_server_not_running "$restart_attempts" "$SYSTEM_MAX_RESTART_ATTEMPTS" "$last_restart_time" "$SYSTEM_RESTART_WAIT")
             local status=$?
 
             if [[ $status -eq 0 && -n "$result" ]]; then
@@ -474,7 +451,7 @@ monitor_loop() {
             fi
 
             # Wait before checking again to give server time to start
-            sleep $RESTART_WAIT
+            sleep $SYSTEM_RESTART_WAIT
         else
             # Handle case when server is running
             handle_server_running "$ark_server_pid"
@@ -490,7 +467,7 @@ monitor_loop() {
 
 # Main monitor function
 monitor_server() {
-    print_header "🔍 ARK Server Monitor"
+    print_script_header "🔍 ARK Server Monitor"
     echo ""
 
     # Check required environment variables
@@ -501,13 +478,13 @@ monitor_server() {
     set_monitor_defaults
 
     # Display configuration
-    print_info "Initial startup delay: ${INITIAL_STARTUP_DELAY} seconds"
+    print_info "Initial startup delay: ${SYSTEM_INITIAL_STARTUP_DELAY} seconds"
     print_info "Check interval: ${SYSTEM_CHECK_INTERVAL} seconds"
-    print_info "Update check interval: ${UPDATE_CHECK_INTERVAL} hours"
+    print_info "Update check interval: ${SYSTEM_UPDATE_CHECK_INTERVAL} hours"
 
     # Wait for the server to start up
     print_info "Waiting for server startup..."
-    sleep $INITIAL_STARTUP_DELAY
+    sleep $SYSTEM_INITIAL_STARTUP_DELAY
 
     # Start the main monitoring loop
     monitor_loop
