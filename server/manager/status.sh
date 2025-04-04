@@ -210,6 +210,8 @@ get_basic_status() {
         # Count lines that contain player name pattern (square brackets)
         player_count=$(grep -c "\[.*\]" /tmp/player_output_debug.txt)
 
+        echo "Player count: $player_count"
+
         # If counting failed, try alternate method
         if [[ $player_count -eq 0 && "$players_output" == *"["* ]]; then
             # Fallback to counting lines
