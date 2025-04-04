@@ -204,8 +204,17 @@ get_basic_status() {
     if [[ "$players_output" != *"No Players Connected"* &&
         "$players_output" != *"completed in"* &&
         -n "$players_output" ]]; then
-        # Count lines that match player entry format (number followed by period)
-        player_count=$(echo "$players_output" | grep -c "^[0-9]\+\.")
+        # Save output to a temp file for debugging
+        echo "$players_output" >/tmp/player_output_debug.txt
+
+        # Count lines that contain player name pattern (square brackets)
+        player_count=$(grep -c "\[.*\]" /tmp/player_output_debug.txt)
+
+        # If counting failed, try alternate method
+        if [[ $player_count -eq 0 && "$players_output" == *"["* ]]; then
+            # Fallback to counting lines
+            player_count=$(echo "$players_output" | wc -l)
+        fi
     fi
 
     # Display player count
