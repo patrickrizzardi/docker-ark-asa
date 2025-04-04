@@ -6,7 +6,7 @@
 # =============================================================================
 
 # Load environment variables and utilities
-source "$(dirname "$0")/common.sh"
+source "$MANAGER_DIR/utils/common.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -50,8 +50,6 @@ set_monitor_defaults() {
     LOG_FILE=${LOG_FILE:-"${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log"}
     MONITOR_LOG=${MONITOR_LOG:-"${ARK_DIR}/logs/server_monitor.log"}
 
-    # Create log directory if it doesn't exist
-    mkdir -p "$(dirname "$MONITOR_LOG")" 2>/dev/null || true
 }
 
 # =============================================================================
@@ -150,12 +148,11 @@ check_for_first_launch_error() {
             return 1
         fi
 
-        local flag_time=$(get_flag_timestamp "start")
-        local current_time=$(date +%s)
-        local flag_age=$((current_time - flag_time))
+        # Check how old the start flag is - if it's older than 5 minutes with no logs, likely a first-launch crash
+        local flag_age_min=$(get_flag_age "start")
 
         # If flag is older than 5 minutes but no logs, likely a first-launch crash
-        if [[ $flag_age -gt 300 ]]; then
+        if [[ $flag_age_min -gt 5 ]]; then
             print_warning "⚠️ Server start flag present but no logs or process found after 5 minutes"
             print_warning "⚠️ This may indicate a first-launch configuration issue"
             return 0

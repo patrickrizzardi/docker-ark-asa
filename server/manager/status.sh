@@ -12,8 +12,7 @@
 # =============================================================================
 
 # Load environment variables and utilities
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/common.sh"
+source "${MANAGER_DIR}/utils/common.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -60,37 +59,28 @@ print_status_box() {
     local status="$1"
     local color="$2"
 
-    [[ "$USE_COLOR" != "yes" ]] && {
-        echo "[ $status ]"
-        return 0
-    }
-
     case "$color" in
-    "green") echo -e "\033[1;32m[ $status ]\033[0m" ;;
-    "red") echo -e "\033[1;31m[ $status ]\033[0m" ;;
-    "yellow") echo -e "\033[1;33m[ $status ]\033[0m" ;;
+    "green") echo -e "${GREEN}${BOLD}[ $status ]${NC}" ;;
+    "red") echo -e "${RED}${BOLD}[ $status ]${NC}" ;;
+    "yellow") echo -e "${YELLOW}${BOLD}[ $status ]${NC}" ;;
     *) echo -e "[ $status ]" ;;
     esac
 }
 
 # Function to format label and value
 format_label_value() {
-    local label="$1"
+    local key="$1"
     local value="$2"
     local pad_length=20
 
     # Calculate padding
     local padding=""
-    for ((i = 0; i < $(($pad_length - ${#label})); i++)); do
+    for ((i = 0; i < $(($pad_length - ${#key})); i++)); do
         padding+=" "
     done
 
-    [[ "$USE_COLOR" == "yes" ]] && {
-        echo -e "\033[1;36m${label}${padding}\033[0m ${value}"
-        return 0
-    }
-
-    echo -e "${label}${padding} ${value}"
+    echo -e "${CYAN}${BOLD}${key}${padding}${NC} ${value}"
+    return 0
 }
 
 # Function to get the server's listening port
@@ -177,7 +167,7 @@ get_basic_status() {
     format_label_value "Listening Port:" "$listening_port"
 
     # Check if RCON is available
-    [[ -z "$RCON_PORT" || -z "$ARK_ADMIN_PASSWORD" ]] && {
+    [[ -z "$NETWORK_RCON_PORT" || -z "$SERVER_ADMIN_PASSWORD" ]] && {
         format_label_value "RCON Status:" "$(print_status_box "NOT CONFIGURED" "yellow")"
         format_label_value "Server Status:" "$(print_status_box "UNKNOWN" "yellow")"
         format_label_value "Note:" "RCON not configured, cannot verify server responsiveness"
@@ -186,12 +176,11 @@ get_basic_status() {
 
     # Set up rcon command
     local container_ip=$(get_container_ip)
-    local rcon_path="/home/arkuser/.local/bin/rcon"
-    local rcon_cmd=("${rcon_path}" -a "${container_ip}:${RCON_PORT}" -p "${ARK_ADMIN_PASSWORD}" -t 5)
 
-    # Try to execute a listplayers command
-    local players_output=$("${rcon_cmd[@]}" ListPlayers 2>/dev/null)
+    print_info "RCON Command: ark rcon ListPlayers"
+    local players_output=$("./utils/rconUtils/listPlayers.sh" 2>/dev/null)
     local rcon_result=$?
+    print_info "RCON Output: $players_output"
 
     [[ $rcon_result -ne 0 ]] && {
         format_label_value "RCON Status:" "$(print_status_box "NOT RESPONDING" "yellow")"
@@ -203,18 +192,25 @@ get_basic_status() {
 
     # Parse player count
     local player_count=0
-    [[ "$players_output" != "No Players"* ]] && {
+
+    if [[ "$players_output" == *"No Players"* ]]; then
+        # No players online
+        player_count=0
+    else
+        # Count non-empty lines to get player count
         player_count=$(echo "$players_output" | grep -v "^$" | wc -l)
-        format_label_value "Online Players:" "$player_count"
-        [[ $player_count -gt 0 ]] && {
-            echo ""
-            echo "Player List:"
-            echo "------------"
-            echo "$players_output" | grep -v "^$"
-        }
-    } || {
-        format_label_value "Online Players:" "0"
-    }
+    fi
+
+    # Display player count only once
+    print_info "Online Players: $player_count"
+    format_label_value "Online Players:" "$player_count"
+
+    # If we have players, show the list
+
+    echo ""
+    echo "Player List:"
+    echo "------------"
+    echo "$players_output" | grep -v "^$"
 
     format_label_value "Server Status:" "$(print_status_box "ONLINE" "green")"
     return 0
@@ -240,7 +236,7 @@ setup_eos_credentials() {
         print_info "Downloading pdb-sym2addr-rs tool..."
         local download_cmd="wget -q https://github.com/azixus/pdb-sym2addr-rs/releases/latest/download/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz -O ${MANAGER_DIR}/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz"
 
-        run_with_spinner "$download_cmd" "Downloading PDB tool..."
+        loading "$download_cmd" "Downloading PDB tool..."
 
         [[ $? -ne 0 ]] && {
             print_error "❌ Failed to download pdb-sym2addr-rs tool"
@@ -262,7 +258,7 @@ setup_eos_credentials() {
     print_info "Extracting EOS credentials from PDB file..."
     local extract_cmd="$PDB_TOOL ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb DedicatedServerClientSecret DedicatedServerClientId DeploymentId"
 
-    local symbols=$(run_with_spinner "$extract_cmd" "Extracting credentials...")
+    local symbols=$(loading "$extract_cmd" "Extracting credentials...")
 
     [[ $? -ne 0 ]] && {
         print_error "❌ Failed to extract symbols from PDB file"
@@ -348,7 +344,7 @@ get_detailed_status() {
 
     # Get public IP
     local ip_cmd="curl -s -m 5 https://ifconfig.me/ip || curl -s -m 5 https://api.ipify.org || curl -s -m 5 https://icanhazip.com"
-    local ip=$(run_with_spinner "$ip_cmd" "Determining public IP...")
+    local ip=$(loading "$ip_cmd" "Determining public IP...")
 
     [[ -z "$ip" ]] && {
         print_error "❌ Failed to determine public IP address"
@@ -359,7 +355,7 @@ get_detailed_status() {
 
     # Get OAuth token
     local oauth_cmd="curl -s -m 10 -H 'Content-Type: application/x-www-form-urlencoded' -H 'Accept: application/json' -H \"Authorization: Basic ${creds}\" -X POST https://api.epicgames.dev/auth/v1/oauth/token -d \"grant_type=client_credentials&deployment_id=${id}\""
-    local oauth=$(run_with_spinner "$oauth_cmd" "Authenticating with EOS API...")
+    local oauth=$(loading "$oauth_cmd" "Authenticating with EOS API...")
 
     [[ -z "$oauth" || "$oauth" == *"error"* ]] && {
         print_error "❌ Failed to authenticate with EOS API"
@@ -370,7 +366,7 @@ get_detailed_status() {
         # Retry with new credentials
         creds=$(cat "$EOS_FILE" | cut -d, -f1)
         id=$(cat "$EOS_FILE" | cut -d, -f2)
-        oauth=$(run_with_spinner "$oauth_cmd" "Retrying authentication with new credentials...")
+        oauth=$(loading "$oauth_cmd" "Retrying authentication with new credentials...")
     }
 
     local token=$(echo "$oauth" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//;s/"//')
@@ -387,7 +383,7 @@ get_detailed_status() {
         -H \"Authorization: Bearer $token\" \
         -d \"{\\\"criteria\\\": [{\\\"key\\\": \\\"attributes.ADDRESS_s\\\", \\\"op\\\": \\\"EQUAL\\\", \\\"value\\\": \\\"${ip}\\\"}]}\""
 
-    local res=$(run_with_spinner "$query_cmd" "Querying EOS API for server information...")
+    local res=$(loading "$query_cmd" "Querying EOS API for server information...")
 
     # Check for errors
     [[ "$res" == *"errorCode"* ]] && {
@@ -462,16 +458,11 @@ get_detailed_status() {
 # Parse command line arguments
 parse_arguments() {
     SHOW_FULL_STATUS="no"
-    USE_COLOR="yes"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
         --full | -f)
             SHOW_FULL_STATUS="yes"
-            shift
-            ;;
-        --no-color | -n)
-            USE_COLOR="no"
             shift
             ;;
         --help | -h)
@@ -487,9 +478,6 @@ parse_arguments() {
 
 # Main function
 main() {
-    # Create PID file for this script
-    create_pid_file
-
     # Parse command line arguments
     parse_arguments "$@"
 

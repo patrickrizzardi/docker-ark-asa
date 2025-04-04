@@ -8,9 +8,8 @@
 # =============================================================================
 
 # Load environment variables and utilities
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/colorPrinter.sh"
-source "${UTILS_PATH}/processManager.sh"
+source "${MANAGER_DIR}/utils/colorPrinter.sh"
+source "${MANAGER_DIR}/utils/processManager.sh"
 
 # =============================================================================
 # MAIN EXECUTION
@@ -19,12 +18,12 @@ source "${UTILS_PATH}/processManager.sh"
 # Main function
 main() {
     clear # Start with a clean screen
-    print_header "💾 ARK Server Save"
-    echo ""   
-    
+    print_script_header "💾 ARK Server Save"
+    echo ""
+
     # Save the world using rcon.sh
     print_info "Saving world..."
-    if ./rcon.sh "SaveWorld" --silent; then
+    if ark rcon "SaveWorld" --silent; then
         print_success "✅ World saved successfully"
         exit 0
     else

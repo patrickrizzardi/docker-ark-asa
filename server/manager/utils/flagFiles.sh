@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "$(dirname "$0")/common.sh"
+source "$MANAGER_DIR/utils/colorPrinter.sh"
 
 # Function to check if the server is running
 flag_exists() {
@@ -43,18 +43,25 @@ remove_flag() {
     rm -f "$flag_file"
 }
 
-# A function to get a specific flag files timestamp
-get_flag_timestamp() {
+# A function to get the age of a flag file in minutes
+get_flag_age() {
     local flag="$1"
     local flag_file="${ARK_DIR}/${flag}.flag"
 
     _verify_flag_names "$flag" || exit 1
 
-    if [[ -f "$flag_file" ]]; then
-        echo "$(stat -c %Y "$flag_file")"
-    else
+    if [[ ! -f "$flag_file" ]]; then
         echo "0"
+        return 1
     fi
+
+    local current_time=$(date +%s)
+    local file_time=$(stat -c %Y "$flag_file")
+    local age_seconds=$((current_time - file_time))
+    local age_minutes=$((age_seconds / 60))
+
+    echo "$age_minutes"
+    return 0
 }
 
 # A helper function to verify the flag names that are used to check if the server is running

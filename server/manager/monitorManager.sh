@@ -143,7 +143,7 @@ start_monitor() {
         return 0
     fi
 
-    print_header "🚀 Starting ARK Server Monitor"
+    print_script_header "🚀 Starting ARK Server Monitor"
 
     # Create log directory if it doesn't exist
     mkdir -p "$(dirname "$MONITOR_LOG")" 2>/dev/null || true
@@ -210,7 +210,7 @@ stop_monitor() {
         return 0
     fi
 
-    print_header "🛑 Stopping ARK Server Monitor"
+    print_script_header "🛑 Stopping ARK Server Monitor"
 
     # Try graceful shutdown first
     stop_monitor_gracefully "$pid"
@@ -237,7 +237,7 @@ stop_monitor() {
 
 # Restart the monitor
 restart_monitor() {
-    print_header "🔄 Restarting ARK Server Monitor"
+    print_script_header "🔄 Restarting ARK Server Monitor"
 
     # Stop the monitor first
     stop_monitor
@@ -263,7 +263,7 @@ show_monitor_logs() {
     fi
 
     local lines=${1:-50}
-    print_header "📋 Last $lines lines of monitor log"
+    print_script_header "📋 Last $lines lines of monitor log"
     tail -n "$lines" "$MONITOR_LOG"
 
     return 0
@@ -276,7 +276,7 @@ follow_monitor_logs() {
         return 1
     fi
 
-    print_header "📋 Following monitor logs in real-time (press CTRL+C to stop)"
+    print_script_header "📋 Following monitor logs in real-time (press CTRL+C to stop)"
     echo ""
 
     # Show last 10 lines and then follow

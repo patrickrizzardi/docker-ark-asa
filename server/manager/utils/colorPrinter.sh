@@ -30,7 +30,17 @@ print_error() {
     echo -e "${RED}$1${NC}" >&2
 }
 
-# Function to print header messages (bold cyan)
-print_header() {
-    echo -e "${BOLD}${CYAN}$1${NC}"
+# Function to print script header with consistent format
+print_script_header() {
+    local title="$1"
+    local char="="
+    local width=80
+    local padding=$(((width - ${#title} - 2) / 2))
+    local line=$(printf "%${width}s" | tr " " "$char")
+
+    echo ""
+    echo "$line"
+    printf "%s %s %s\n" "$(printf "%${padding}s" | tr " " "$char")" "$title" "$(printf "%${padding}s" | tr " " "$char")"
+    echo "$line"
+    echo ""
 }

@@ -41,16 +41,22 @@
   },
 
   "system": {
-    "startup_timeout": "300",
+    "startup_timeout": "60",
     "startup_wait": "60",
+    "warning_time": "5",
     "shutdown_timeout": "30",
     "check_interval": "30",
-    "restart_wait": "60",
-    "shutdown_warning_time": "5"
+    "restart_wait": "120",
+    "stale_lock_time": "30",
+    "max_restart_attempts": "3",
+    "update_check_interval": "1",
+    "initial_startup_delay": "300"
   },
 
   "backup": {
-    "max_backups": "10"
+    "max_backups": "10",
+    "compression_level": "5",
+    "name_prefix": "ark-backup"
   },
 
   "api": {
