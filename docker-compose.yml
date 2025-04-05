@@ -58,7 +58,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       # Server files
-      - ./server/Saved:/steam/steamapps/common/asa-server
+      # - ./server/Saved:/steam/steamapps/common/asa-server
       - ./server/config:/steam/steamapps/common/asa-server/ShooterGame/Saved/Config/WindowsServer
 
       # Logs
