@@ -35,7 +35,7 @@ parse_args() {
     done
 
     # Command is required
-    if [[ -z "$COMMAND" ]]; then
+    if is_empty "$COMMAND"; then
         print_error "No command provided"
         echo "Usage: ./rcon.sh <command> [--silent]"
         return 1
@@ -55,20 +55,20 @@ setup_rcon() {
     )
 
     for path in "${RCON_PATHS[@]}"; do
-        if [[ -f "$path" ]]; then
+        if file_exists "$path"; then
             RCON_PATH="$path"
             break
         fi
     done
 
-    if [[ -z "$RCON_PATH" ]]; then
+    if is_empty "$RCON_PATH"; then
         print_error "RCON binary not found. Cannot communicate with server via RCON."
         print_info "To install RCON tools, you need to add the package to your Dockerfile."
         print_info "Searched in: ${RCON_PATHS[*]}"
         return 1
     fi
 
-    if [[ ! -x "$RCON_PATH" ]]; then
+    if ! is_executable "$RCON_PATH"; then
         print_error "RCON binary at $RCON_PATH is not executable"
         return 1
     fi
@@ -93,11 +93,11 @@ execute_rcon() {
 
     # Handle error cases
     if [[ $status -ne 0 ]]; then
-        if [[ "$output" == *"i/o timeout"* ]]; then
+        if contains "$output" "i/o timeout"; then
             print_error "RCON timeout - server not responding"
-        elif [[ "$output" == *"connection refused"* ]]; then
+        elif contains "$output" "connection refused"; then
             print_error "RCON connection refused - server not accepting connections"
-        elif [[ "$output" == *"authentication failed"* ]]; then
+        elif contains "$output" "authentication failed"; then
             print_error "RCON authentication failed - incorrect password"
         else
             print_error "RCON command failed: $output"
@@ -116,7 +116,7 @@ main() {
     parse_args "$@" || return 1
 
     # Display header if not in silent mode
-    if [[ "$COMMON_SILENT" != "true" ]]; then
+    if does_not_equal "$COMMON_SILENT" "true"; then
         print_script_header "ARK Server RCON Command"
     fi
 
@@ -132,8 +132,8 @@ main() {
     local status=$?
 
     # Handle the result
-    if [[ $status -eq 0 ]]; then
-        if [[ "$COMMON_SILENT" != "true" ]]; then
+    if equals "$status" "0"; then
+        if does_not_equal "$COMMON_SILENT" "true"; then
             print_success "Command sent successfully"
             echo "Response:"
             echo "$result"

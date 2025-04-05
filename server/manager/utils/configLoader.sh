@@ -3,9 +3,9 @@
 # ARK Server JSON Configuration Loader
 # Reads configuration from JSON file and exports as environment variables
 
-# Path to utilities
-UTILS_PATH="${MANAGER_DIR:-/manager}/utils"
-source "${UTILS_PATH}/colorPrinter.sh"
+# Source required utilities
+source "${MANAGER_DIR}/utils/baseUtils.sh"
+source "${MANAGER_DIR}/utils/colorPrinter.sh"
 
 # Set strict mode
 set -eo pipefail
@@ -40,7 +40,7 @@ load_config() {
     # Handle extra dash options - convert array to string with "-" prefix
     # Format: EXTRA_DASH_OPTIONS="-option1 -option2 -option3"
     local extra_dash_options=$(jq -r '.gameplay.extra_dash_options | if type=="array" then map("-" + .) | join(" ") else "" end' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$extra_dash_options" && "$extra_dash_options" != "null" && "$extra_dash_options" != "" ]]; then
+    if is_not_empty "$extra_dash_options" && does_not_equal "$extra_dash_options" "null" && does_not_equal "$extra_dash_options" ""; then
         config_vars["GAMEPLAY_EXTRA_DASH_OPTIONS"]="$extra_dash_options"
         export GAMEPLAY_EXTRA_DASH_OPTIONS="$extra_dash_options"
     fi
@@ -48,7 +48,7 @@ load_config() {
     # Handle extra options - convert object to string with "?key=value" format
     # Format: EXTRA_OPTIONS="?option1=value1 ?option2=value2 ?option3=value3"
     local extra_options=$(jq -r '.gameplay.extra_options | if type=="object" then to_entries | map("?" + .key + "=" + (.value|tostring)) | join("") else "" end' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$extra_options" && "$extra_options" != "null" && "$extra_options" != "" ]]; then
+    if is_not_empty "$extra_options" && does_not_equal "$extra_options" "null" && does_not_equal "$extra_options" ""; then
         config_vars["GAMEPLAY_EXTRA_OPTIONS"]="$extra_options"
         export GAMEPLAY_EXTRA_OPTIONS="$extra_options"
     fi
@@ -56,7 +56,7 @@ load_config() {
     # Handle mods - convert array to comma-separated string
     # Format: MODS="936660,936661,936662"
     local mods=$(jq -r '.gameplay.mods | if type=="array" then join(",") else "" end' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$mods" && "$mods" != "null" && "$mods" != "" ]]; then
+    if is_not_empty "$mods" && does_not_equal "$mods" "null" && does_not_equal "$mods" ""; then
         config_vars["GAMEPLAY_MODS"]="$mods"
         export GAMEPLAY_MODS="$mods"
     fi

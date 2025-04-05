@@ -71,7 +71,12 @@ force_shutdown() {
     kill -9 $pid >/dev/null 2>&1
     pkill -9 -f "ArkAscendedServer.exe" >/dev/null 2>&1
     pkill -9 -f "AsaApiLoader.exe" >/dev/null 2>&1
-    pkill -9 -f "wine" >/dev/null 2>&1
+
+    # Be more specific with wine processes - only kill wine processes related to ARK
+    pkill -9 -f "wine.*ArkAscendedServer|wine.*AsaApiLoader" >/dev/null 2>&1
+
+    # Add a success message after SIGKILL
+    print_success "✅ Server forcefully terminated with SIGKILL"
 
     # Clean up temporary files
     rm -rf "${STEAM_DIR}/Steam/logs"/* 2>/dev/null || true
@@ -145,9 +150,16 @@ graceful_shutdown() {
 
     # Check for connected players
     print_info "Checking for connected players..."
-    local player_info=$(ark rcon listPlayers --silent)
+    local player_info=$(capture_all_output ark rcon listPlayers --silent)
 
-    if [[ "$player_info" != *"No Players Connected"* ]]; then
+    # If there are errors or rcon is not responding, force shutdown
+    if contains "$player_info" "with exit code: 1" || contains "$player_info" "failed" || contains "$player_info" "error" || contains "$player_info" "connection refused" || contains "$player_info" "not responding" || contains "$player_info" "RCON timeout"; then
+        print_warning "⚠️ RCON command failed, check server logs for more information"
+        force_shutdown $pid
+        return $?
+    fi
+
+    if does_not_contain "$player_info" "No Players Connected"; then
         print_info "Players are connected, starting countdown"
         notify_countdown $SYSTEM_WARNING_TIME
     else
@@ -191,12 +203,6 @@ graceful_shutdown() {
 # MAIN EXECUTION
 # =============================================================================
 
-# Function for cleanup on script exit
-cleanup() {
-    remove_flag "shutdown"
-    print_info "Stop script exiting with code: $?"
-}
-
 # Parse command line arguments
 parse_args() {
     FORCE_FLAG=""
@@ -222,8 +228,6 @@ parse_args() {
 
 # Main function
 main() {
-    # Set up trap for cleanup
-    trap cleanup EXIT INT TERM
 
     # Print header
     print_script_header "🛑 ARK Server Shutdown"

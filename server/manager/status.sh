@@ -89,14 +89,15 @@ get_listening_port() {
     local ark_pid=$(get_ark_server_pid)
 
     if equals "$ark_pid" "0"; then
-        return 1
+        echo "UNKNOWN"
+        return 0
     fi
 
     # Look for connections on SERVER_PORT or any port if SERVER_PORT is not specified
-    if ! is_empty "$SERVER_PORT"; then
+    if is_not_empty "$SERVER_PORT"; then
         # Look specifically for the configured server port
         local port_info=$(ss -tupln | grep -E "$ark_pid.*:$SERVER_PORT" | head -1)
-        if ! is_empty "$port_info"; then
+        if is_not_empty "$port_info"; then
             echo "$SERVER_PORT"
             return 0
         fi
@@ -104,30 +105,31 @@ get_listening_port() {
 
     # No specific server port configured or not found, get the first port this process listens on
     local listening_ports=$(ss -tupln | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
-    if ! is_empty "$listening_ports"; then
+    if is_not_empty "$listening_ports"; then
         echo "$listening_ports"
         return 0
     fi
 
     # Try to find the port by looking at UDP connections, as ARK server uses UDP
     local udp_port=$(ss -uplna | grep -E "$ark_pid" | grep -oP '(?<=:)\d+' | head -1)
-    if ! is_empty "$udp_port"; then
+    if is_not_empty "$udp_port"; then
         echo "$udp_port"
         return 0
     fi
 
     # As a last resort, check for any port close to the configured SERVER_PORT
-    if ! is_empty "$SERVER_PORT"; then
+    if is_not_empty "$SERVER_PORT"; then
         # Check if any process is listening on the expected port
         local any_process_port=$(ss -tupln | grep ":$SERVER_PORT" | grep -oP '(?<=:)\d+')
-        if ! is_empty "$any_process_port"; then
+        if is_not_empty "$any_process_port"; then
             echo "$any_process_port"
             return 0
         fi
     fi
 
-    # No port found
-    return 1
+    # No port found - return UNKNOWN instead of failing
+    echo "UNKNOWN"
+    return 0
 }
 
 # =============================================================================
@@ -139,11 +141,11 @@ set_basic_status_variables() {
     PROCESS_ID=""
     SERVER_TYPE=""
     LISTENING_PORT=""
-    RCON_STATUS=""
-    SERVER_STATUS=""
+    SERVER_STATUS="ONLINE"
+    SERVER_STATUS_COLOR="green"
+    RCON_STATUS="RESPONDING"
+    RCON_STATUS_COLOR="green"
     PLAYER_COUNT="0"
-    SERVER_STATUS_COLOR="red"
-    RCON_STATUS_COLOR="red"
     STATUS_NOTE=""
 
     # Get the server PID
@@ -155,7 +157,8 @@ set_basic_status_variables() {
         SERVER_STATUS="OFFLINE"
         SERVER_STATUS_COLOR="red"
         STATUS_NOTE="Not running"
-        return 1
+        # Skip the rest of the checks if server is offline
+        return 0
     fi
 
     # Show server type (API or regular)
@@ -164,37 +167,31 @@ set_basic_status_variables() {
     SERVER_TYPE="$server_type"
 
     # Check if server is listening on the port
-    local listening_port=$(get_listening_port)
-    if is_empty "$listening_port"; then
-        LISTENING_PORT=""
+    LISTENING_PORT=$(get_listening_port)
+
+    if is_empty "$LISTENING_PORT"; then
+        LISTENING_PORT="UNKNOWN"
         SERVER_STATUS="STARTING"
         SERVER_STATUS_COLOR="yellow"
-        STATUS_NOTE="Server is running but not yet listening on network port"
-        return 2
+        STATUS_NOTE="Server is starting, please wait..."
     fi
-
-    LISTENING_PORT="$listening_port"
-    SERVER_STATUS="ONLINE"
-    SERVER_STATUS_COLOR="green"
 
     # Check if RCON is available
     if is_empty "$NETWORK_RCON_PORT" || is_empty "$SERVER_ADMIN_PASSWORD"; then
         RCON_STATUS="NOT CONFIGURED"
         RCON_STATUS_COLOR="yellow"
         STATUS_NOTE="RCON not configured, cannot verify server responsiveness"
-        return 0
     fi
 
     # Run RCON command with silent mode enabled
     local players_output=$(capture_all_output ark rcon "ListPlayers" --silent)
-    echo "Players output: $players_output"
 
     # Check for error indicators in the output text
-    if contains "$players_output" "with exit code: 1" || contains "$players_output" "failed" || contains "$players_output" "error"; then
+    if contains "$players_output" "with exit code: 1" || contains "$players_output" "failed" || contains "$players_output" "error" || contains "$players_output" "connection refused"; then
         RCON_STATUS="ERROR"
         RCON_STATUS_COLOR="red"
         PLAYER_COUNT="0"
-        return 0
+        STATUS_NOTE="RCON command failed, check server logs for more information"
     fi
 
     # Check for "not responding" in output
@@ -202,25 +199,7 @@ set_basic_status_variables() {
         RCON_STATUS="NOT RESPONDING"
         RCON_STATUS_COLOR="yellow"
         PLAYER_COUNT="0"
-        return 0
     fi
-
-    # Server is fully online and responding
-    RCON_STATUS="RESPONDING"
-    RCON_STATUS_COLOR="green"
-
-    # Parse player count based on output
-    local player_count=0
-
-    # Handle "No Players Connected" case explicitly
-    if contains "$players_output" "No Players Connected"; then
-        player_count=0
-    elif ! is_empty "$players_output"; then
-        # Count lines that match player entries (looking for lines with numbers followed by period)
-        player_count=$(echo "$players_output" | grep -c "^[0-9]\+\.")
-    fi
-
-    PLAYER_COUNT="$player_count"
 
     return 0
 }
@@ -248,7 +227,7 @@ get_basic_status() {
     format_label_value "Server Type:" "$SERVER_TYPE"
 
     # Show port info if available
-    if ! is_empty "$LISTENING_PORT"; then
+    if is_not_empty "$LISTENING_PORT"; then
         format_label_value "Listening Port:" "$LISTENING_PORT"
     else
         format_label_value "Expected Port:" "$SERVER_PORT"
@@ -261,7 +240,7 @@ get_basic_status() {
     format_label_value "Online Players:" "$PLAYER_COUNT"
 
     # Show note if any
-    if ! is_empty "$STATUS_NOTE"; then
+    if is_not_empty "$STATUS_NOTE"; then
         echo ""
         format_label_value "Note:" "$STATUS_NOTE"
     fi
@@ -347,11 +326,11 @@ setup_eos_credentials() {
     local client_secret=$(echo "$symbols" | grep "DedicatedServerClientSecret" | cut -d, -f3)
     local deployment_id=$(echo "$symbols" | grep "DeploymentId" | cut -d, -f3)
 
-    [[ -z "$client_id" || -z "$client_secret" || -z "$deployment_id" ]] && {
+    if is_empty "$client_id" || is_empty "$client_secret" || is_empty "$deployment_id"; then
         print_error "❌ Failed to parse extracted symbols"
         print_info "Please check the PDB file and ensure it contains the required credentials."
         return 1
-    }
+    fi
 
     # Save base64 login and deployment id to file
     local creds=$(echo -n "$client_id:$client_secret" | base64 -w0)
@@ -363,12 +342,12 @@ setup_eos_credentials() {
     }
 
     # Clean up - remove PDB tool to avoid bloat
-    if [[ -f "$PDB_TOOL" ]]; then
+    if file_exists "$PDB_TOOL"; then
         rm -f "$PDB_TOOL"
 
-        [[ -f "$PDB_TOOL" ]] && {
+        if file_exists "$PDB_TOOL"; then
             print_warning "⚠️ Failed to remove PDB tool, but credentials were saved successfully"
-        }
+        fi
     fi
 
     print_success "✅ EOS credentials extracted and saved successfully"
@@ -423,7 +402,7 @@ set_detailed_status_variables() {
     fi
 
     # Check if EOS credentials exist
-    if [ ! -f "$EOS_FILE" ]; then
+    if ! file_exists "$EOS_FILE"; then
         DETAILED_EOS_STATUS="NOT CONFIGURED"
         DETAILED_EOS_COLOR="yellow"
         DETAILED_NOTE="Epic Online Services credentials not found. Run with --full to set up."
@@ -447,7 +426,7 @@ set_detailed_status_variables() {
     # Try multiple IP detection services
     for ip_service in "https://ifconfig.me/ip" "https://api.ipify.org" "https://icanhazip.com"; do
         ip=$(curl -s --max-time 5 "$ip_service" | tr -d '[:space:]')
-        if ! is_empty "$ip" && [[ "$ip" =~ ^[0-9.]+$ ]]; then
+        if is_not_empty "$ip" && [[ "$ip" =~ ^[0-9.]+$ ]]; then
             break
         fi
     done
@@ -567,7 +546,7 @@ EOF
 
     local mods=$(echo "$serv" | jq -r '.attributes.ENABLEDMODS_s')
     DETAILED_ACTIVE_MODS="None"
-    if ! equals "$mods" "null" && ! is_empty "$mods"; then
+    if is_not_empty "$mods" && does_not_equal "$mods" "null"; then
         DETAILED_ACTIVE_MODS="$mods"
     fi
 
@@ -596,7 +575,7 @@ get_detailed_status() {
     format_label_value "Server Type:" "$SERVER_TYPE"
 
     # Show port info if available
-    if ! is_empty "$LISTENING_PORT"; then
+    if is_not_empty "$LISTENING_PORT"; then
         format_label_value "Listening Port:" "$LISTENING_PORT"
     else
         format_label_value "Network Status:" "$(print_status_box "NOT LISTENING" "yellow")"
@@ -683,7 +662,7 @@ get_detailed_status() {
         format_label_value "Online Players:" "$PLAYER_COUNT"
 
         # Show note if we couldn't get detailed info
-        if ! is_empty "$DETAILED_NOTE"; then
+        if is_not_empty "$DETAILED_NOTE"; then
             echo ""
             format_label_value "Note:" "$DETAILED_NOTE"
         fi

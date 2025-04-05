@@ -15,10 +15,14 @@ declare -a REQUIRED_VARS=(
 cleanup() {
     local exit_code=$?
     # Clean up any temporary files
-    [[ -n "$TMP_PLUGIN_FILE" && -f "$TMP_PLUGIN_FILE" ]] && rm -f "$TMP_PLUGIN_FILE"
+    if file_exists "$TMP_PLUGIN_FILE"; then
+        rm -f "$TMP_PLUGIN_FILE"
+    fi
     # Clean up any backup files
     for cfg in "${PLUGIN_CONFIG_BACKUPS[@]}"; do
-        [[ -f "$cfg" ]] && rm -f "$cfg"
+        if file_exists "$cfg"; then
+            rm -f "$cfg"
+        fi
     done
     exit $exit_code
 }
@@ -65,25 +69,25 @@ install_plugin() {
     local destination="$4"
 
     # Validate required parameters
-    [[ -z "$plugin_name" ]] && {
+    if is_empty "$plugin_name"; then
         print_error "Missing plugin name parameter"
         return 1
-    }
+    fi
 
-    [[ -z "$latest_release" ]] && {
+    if is_empty "$latest_release"; then
         print_error "Missing version parameter for plugin $plugin_name"
         return 1
-    }
+    fi
 
-    [[ -z "$url" ]] && {
+    if is_empty "$url"; then
         print_error "Missing URL parameter for plugin $plugin_name"
         return 1
-    }
+    fi
 
-    [[ -z "$destination" ]] && {
+    if is_empty "$destination"; then
         print_error "Missing destination parameter for plugin $plugin_name"
         return 1
-    }
+    fi
 
     # Make sure the destination directory exists
     ensure_dir "$destination" || {
@@ -96,7 +100,7 @@ install_plugin() {
 
     # Backup existing config files
     for config_file in ${PLUGIN_CONFIG_FILES[$plugin_name]}; do
-        [[ -f "${destination}/${config_file}" ]] && {
+        if file_exists "${destination}/${config_file}"; then
             print_info "Backing up ${config_file}"
             local backup_file="/tmp/${plugin_name}_${config_file}.bak"
             cp "${destination}/${config_file}" "$backup_file" || {
@@ -104,7 +108,7 @@ install_plugin() {
                 continue
             }
             PLUGIN_CONFIG_BACKUPS+=("$backup_file")
-        }
+        fi
     done
 
     # Prepare download URL and temp file
@@ -158,7 +162,7 @@ install_plugin() {
     # Restore config files
     for config_file in ${PLUGIN_CONFIG_FILES[$plugin_name]}; do
         local backup_file="/tmp/${plugin_name}_${config_file}.bak"
-        [[ -f "$backup_file" ]] && {
+        if file_exists "$backup_file"; then
             print_info "Restoring ${config_file}"
             cp "$backup_file" "${destination}/${config_file}" || {
                 print_warning "Failed to restore ${config_file}"
@@ -171,7 +175,7 @@ install_plugin() {
                     break
                 }
             done
-        }
+        fi
     done
 
     # Save version information if successful
@@ -197,17 +201,25 @@ is_plugin_up_to_date() {
     local latest_version="$2"
     local plugin_dir="$3"
 
-    [[ -z "$plugin" || -z "$latest_version" || -z "$plugin_dir" ]] && return 1
+    if is_empty "$plugin" || is_empty "$latest_version" || is_empty "$plugin_dir"; then
+        return 1
+    fi
 
     # Check if plugin directory exists
-    [[ ! -d "$plugin_dir" ]] && return 1
+    if ! dir_exists "$plugin_dir"; then
+        return 1
+    fi
 
     # Check if plugin is already up-to-date
     local last_release_file="${plugin_dir}/last_${plugin}_release.txt"
-    [[ ! -f "$last_release_file" ]] && return 1
+    if ! file_exists "$last_release_file"; then
+        return 1
+    fi
 
     local last_release=$(cat "$last_release_file")
-    [[ "$last_release" = "$latest_version" ]] && return 0
+    if equals "$last_release" "$latest_version"; then
+        return 0
+    fi
 
     return 1
 }
@@ -218,10 +230,10 @@ is_plugin_up_to_date() {
 install_plugins() {
     local ark_dir="$1"
 
-    [[ -z "$ark_dir" ]] && {
+    if is_empty "$ark_dir"; then
         print_error "ARK_DIR is not set or is empty"
         return 1
-    }
+    fi
 
     [[ ! -d "$ark_dir" ]] && {
         print_error "ARK directory does not exist: $ark_dir"
@@ -257,7 +269,9 @@ install_plugins() {
         # Get current version if available
         local last_release=""
         local last_release_file="${plugin_dir}/last_${plugin}_release.txt"
-        [[ -f "$last_release_file" ]] && last_release=$(cat "$last_release_file")
+        if file_exists "$last_release_file"; then
+            last_release=$(cat "$last_release_file")
+        fi
 
         # Install/update plugin
         print_info "Installing/Updating ${plugin} from ${last_release:-'not installed'} to ${plugin_version}..."
@@ -292,15 +306,15 @@ install_specific_plugin() {
     local ark_dir="$1"
     local plugin_name="$2"
 
-    [[ -z "$ark_dir" ]] && {
+    if is_empty "$ark_dir"; then
         print_error "ARK_DIR is not set or is empty"
         return 1
-    }
+    fi
 
-    [[ -z "$plugin_name" ]] && {
+    if is_empty "$plugin_name"; then
         print_error "Plugin name is not specified"
         return 1
-    }
+    fi
 
     [[ ! -d "$ark_dir" ]] && {
         print_error "ARK directory does not exist: $ark_dir"
@@ -308,11 +322,11 @@ install_specific_plugin() {
     }
 
     # Check if plugin exists in the definitions
-    [[ -z "${PLUGIN_VERSIONS[$plugin_name]}" ]] && {
+    if is_not_executable "${PLUGIN_VERSIONS[$plugin_name]}"; then
         print_error "Unknown plugin: $plugin_name"
         print_info "Available plugins: ${!PLUGIN_VERSIONS[*]}"
         return 1
-    }
+    fi
 
     # Get plugin version
     local plugin_version="${PLUGIN_VERSIONS[$plugin_name]}"
@@ -337,7 +351,9 @@ install_specific_plugin() {
     # Get current version if available
     local last_release=""
     local last_release_file="${plugin_dir}/last_${plugin_name}_release.txt"
-    [[ -f "$last_release_file" ]] && last_release=$(cat "$last_release_file")
+    if file_exists "$last_release_file"; then
+        last_release=$(cat "$last_release_file")
+    fi
 
     # Install/update plugin
     print_info "Installing/Updating ${plugin_name} from ${last_release:-'not installed'} to ${plugin_version}..."
@@ -357,15 +373,15 @@ install_specific_plugin() {
 list_plugins() {
     local ark_dir="$1"
 
-    [[ -z "$ark_dir" ]] && {
+    if is_empty "$ark_dir"; then
         print_error "ARK_DIR is not set or is empty"
         return 1
-    }
+    fi
 
-    [[ ! -d "$ark_dir" ]] && {
+    if ! dir_exists "$ark_dir"; then
         print_error "ARK directory does not exist: $ark_dir"
         return 1
-    }
+    fi
 
     print_script_header "Available Plugins"
 
@@ -385,16 +401,16 @@ list_plugins() {
         local status="Not installed"
 
         # Check if plugin directory exists
-        [[ -d "$plugin_dir" ]] && {
+        if dir_exists "$plugin_dir"; then
             # Check if version file exists
             local last_release_file="${plugin_dir}/last_${plugin}_release.txt"
-            [[ -f "$last_release_file" ]] && {
+            if file_exists "$last_release_file"; then
                 installed_version=$(cat "$last_release_file")
                 [[ "$installed_version" == "$plugin_version" ]] && status="Up to date" || status="Needs update"
-            } || {
+            else
                 status="Unknown"
-            }
-        }
+            fi
+        fi
 
         printf "%-25s %-12s %-12s %-12s\n" "$plugin" "$plugin_version" "$installed_version" "$status"
     done

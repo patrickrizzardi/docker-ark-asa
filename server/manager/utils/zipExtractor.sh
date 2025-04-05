@@ -7,7 +7,9 @@ source "${UTILS_PATH}/common.sh"
 cleanup() {
     local exit_code=$?
     # Clean up any temporary files in case of unexpected exit
-    [[ -n "$TEMP_ZIP_FILE" && -f "$TEMP_ZIP_FILE" ]] && rm -f "$TEMP_ZIP_FILE"
+    if is_not_empty "$TEMP_ZIP_FILE" && file_exists "$TEMP_ZIP_FILE"; then
+        rm -f "$TEMP_ZIP_FILE"
+    fi
     exit $exit_code
 }
 
@@ -39,7 +41,9 @@ extract_zip() {
 
     # Determine if we should use flatten mode
     local use_flatten=0
-    [[ "$flags" == *"flatten"* ]] && use_flatten=1
+    if contains "$flags" "flatten"; then
+        use_flatten=1
+    fi
 
     # Try standard unzip first (with or without flatten)
     if [ $use_flatten -eq 1 ]; then
@@ -163,15 +167,15 @@ download_and_extract() {
     local temp_dir="${4:-/tmp}"
 
     # Validate required arguments
-    [[ -z "$url" ]] && {
+    if is_empty "$url"; then
         print_error "Missing required URL parameter for download_and_extract"
         return 1
-    }
+    fi
 
-    [[ -z "$destination" ]] && {
+    if is_empty "$destination"; then
         print_error "Missing required destination parameter for download_and_extract"
         return 1
-    }
+    fi
 
     # Create temp directory if it doesn't exist
     ensure_dir "$temp_dir" || return 1
@@ -185,8 +189,10 @@ download_and_extract() {
     command -v wget >/dev/null 2>&1 && {
         wget -q "$url" -O "$TEMP_ZIP_FILE" || {
             print_error "Failed to download using wget: $url"
-            [[ -f "$TEMP_ZIP_FILE" ]] && rm -f "$TEMP_ZIP_FILE"
-            TEMP_ZIP_FILE=""
+            if file_exists "$TEMP_ZIP_FILE"; then
+                rm -f "$TEMP_ZIP_FILE"
+                TEMP_ZIP_FILE=""
+            fi
             return 1
         }
     } || {
@@ -194,13 +200,18 @@ download_and_extract() {
         command -v curl >/dev/null 2>&1 && {
             curl -s -L "$url" -o "$TEMP_ZIP_FILE" || {
                 print_error "Failed to download using curl: $url"
-                [[ -f "$TEMP_ZIP_FILE" ]] && rm -f "$TEMP_ZIP_FILE"
-                TEMP_ZIP_FILE=""
+                if file_exists "$TEMP_ZIP_FILE"; then
+                    rm -f "$TEMP_ZIP_FILE"
+                    TEMP_ZIP_FILE=""
+                fi
                 return 1
             }
         } || {
             print_error "Neither wget nor curl available for download"
-            TEMP_ZIP_FILE=""
+            if file_exists "$TEMP_ZIP_FILE"; then
+                rm -f "$TEMP_ZIP_FILE"
+                TEMP_ZIP_FILE=""
+            fi
             return 1
         }
     }
@@ -208,8 +219,10 @@ download_and_extract() {
     # Verify file was downloaded successfully
     [[ ! -f "$TEMP_ZIP_FILE" || ! -s "$TEMP_ZIP_FILE" ]] && {
         print_error "Download failed or created empty file: $url"
-        [[ -f "$TEMP_ZIP_FILE" ]] && rm -f "$TEMP_ZIP_FILE"
-        TEMP_ZIP_FILE=""
+        if file_exists "$TEMP_ZIP_FILE"; then
+            rm -f "$TEMP_ZIP_FILE"
+            TEMP_ZIP_FILE=""
+        fi
         return 1
     }
 
@@ -220,8 +233,10 @@ download_and_extract() {
     local extract_status=$?
 
     # Clean up the temp file
-    rm -f "$TEMP_ZIP_FILE"
-    TEMP_ZIP_FILE=""
+    if file_exists "$TEMP_ZIP_FILE"; then
+        rm -f "$TEMP_ZIP_FILE"
+        TEMP_ZIP_FILE=""
+    fi
 
     return $extract_status
 }

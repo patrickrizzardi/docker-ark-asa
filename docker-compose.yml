@@ -71,13 +71,14 @@ services:
       - ./server/manager:/manager
       - ./server/ark-server-config.json:/ark-server-config.json
       - ./server/entrypoint.sh:/entrypoint.sh
-    ports:
-      - 7777:7777/udp
-      - 7778:7778/udp
-      - 27015:27015/udp
-      - 27020:27020/tcp
-    networks:
-      - ark
+    # ports:
+    #   - 7777:7777/udp
+    #   - 7778:7778/udp
+    #   - 27015:27015/udp
+    #   - 27020:27020/tcp
+    # networks:
+    #   - ark
+    network_mode: host
     # Increase default grace period to ensure clean shutdown
     stop_grace_period: 30s
     # environment:

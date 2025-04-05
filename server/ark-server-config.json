@@ -50,7 +50,7 @@
     "stale_lock_time": "30",
     "max_restart_attempts": "3",
     "update_check_interval": "1",
-    "initial_startup_delay": "300"
+    "initial_startup_delay": "60"
   },
 
   "backup": {

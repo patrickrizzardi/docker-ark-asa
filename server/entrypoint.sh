@@ -1,12 +1,6 @@
 #!/bin/bash
 # This script serves as the container's entrypoint
 
-# Load configuration from JSON file if it exists
-if [ -f "/ark-server-config.json" ]; then
-  echo "📝 Loading configuration from JSON file..."
-  source "${MANAGER_DIR}/utils/configLoader.sh" "/ark-server-config.json"
-fi
-
 # Make sure WINEPREFIX directory exists and is writable
 mkdir -p "${WINEPREFIX}" 2>/dev/null || true
 

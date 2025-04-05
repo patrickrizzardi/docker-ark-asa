@@ -89,12 +89,12 @@ verify_server_started() {
         local ark_server_pid=$(get_ark_server_pid)
         if [[ "$ark_server_pid" != "0" ]]; then
             # Check if the server is actually responsive using RCON
-            if [[ -n "$NETWORK_RCON_PORT" && -n "$SERVER_ADMIN_PASSWORD" ]]; then
+            if is_not_empty "$NETWORK_RCON_PORT" && is_not_empty "$SERVER_ADMIN_PASSWORD"; then
                 loading "Checking server responsiveness via RCON... (${elapsed}s/${timeout}s)"
                 local rcon_output=$(ark rcon info --silent 2>&1)
                 local rcon_status=$?
 
-                if [[ $rcon_status -eq 0 && "$rcon_output" != *"RCON_TIMEOUT"* && "$rcon_output" != *"RCON_FAILED"* ]]; then
+                if equals "$rcon_status" "0" && does_not_contain "$rcon_output" "RCON_TIMEOUT" && does_not_contain "$rcon_output" "RCON_FAILED"; then
                     echo "" # Add a newline after the spinner
                     print_success "✅ Server verified as responsive via RCON"
                     return 0

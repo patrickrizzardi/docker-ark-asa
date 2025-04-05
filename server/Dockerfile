@@ -59,6 +59,7 @@ RUN set -ex; \
     procps \
     software-properties-common \
     dbus \
+    htop \
     # Wine dependencies
     lib32gcc-s1 \
     lib32stdc++6 \
@@ -69,7 +70,6 @@ RUN set -ex; \
     vim \
     unzip \
     winetricks \
-    # Additional dependencies to fix Wine issues
     libgcc-11-dev \
     gcc-multilib \
     g++-multilib \

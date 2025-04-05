@@ -15,8 +15,7 @@
 # =============================================================================
 
 # Load environment variables and utilities
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/common.sh"
+source "${MANAGER_DIR}/utils/common.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -41,7 +40,7 @@ MONITOR_PID_FILE="${ARK_DIR}/monitor.pid"
 
 # Get monitor process ID if running
 get_monitor_pid() {
-    if [[ -f "$MONITOR_PID_FILE" ]]; then
+    if file_exists "$MONITOR_PID_FILE"; then
         local pid=$(cat "$MONITOR_PID_FILE")
         # Check if process exists
         if ps -p "$pid" >/dev/null 2>&1; then
@@ -56,7 +55,7 @@ get_monitor_pid() {
 
     # Look for the monitor process
     local pids=$(pgrep -f "bash.*${MONITOR_SCRIPT}" 2>/dev/null || true)
-    if [[ -n "$pids" ]]; then
+    if is_not_empty "$pids"; then
         # Return the first matching PID
         echo "$pids" | head -n 1
         return 0
@@ -68,13 +67,13 @@ get_monitor_pid() {
 
 # Check monitor log status and age
 check_log_status() {
-    if [[ ! -f "$MONITOR_LOG" ]]; then
+    if ! file_exists "$MONITOR_LOG"; then
         print_warning "⚠️ Monitor log file not found at: $MONITOR_LOG"
 
         # Try to locate it using find
         echo "Searching for monitor log file..."
         local found_logs=$(find "${ARK_DIR}" -name "server_monitor.log" -type f 2>/dev/null)
-        if [[ -n "$found_logs" ]]; then
+        if is_not_empty "$found_logs"; then
             echo "Found possible logs:"
             echo "$found_logs"
             # Suggest updating the path
@@ -105,6 +104,7 @@ check_log_status() {
 
 # Check monitor status
 check_monitor_status() {
+    print_script_header "🔍 Checking ARK Server Monitor Status"
     local pid=$(get_monitor_pid)
 
     if [[ "$pid" == "0" ]]; then
@@ -291,18 +291,59 @@ follow_monitor_logs() {
 
 # Parse command line arguments
 parse_arguments() {
-    COMMAND=""
-    LOG_LINES=50
-
-    if [[ $# -gt 0 ]]; then
-        COMMAND="$1"
-        shift
-
-        # Check for additional args
-        if [[ "$COMMAND" == "logs" && $# -gt 0 ]]; then
-            LOG_LINES="$1"
-        fi
+    if [ $# -eq 0 ]; then
+        # Default to showing status if no arguments
+        check_monitor_status
+        echo ""
+        echo "Usage: ./monitorManager.sh [command]"
+        echo "Commands:"
+        echo "  status         - Check if the monitor is running"
+        echo "  start          - Start the monitor"
+        echo "  stop           - Stop the monitor"
+        echo "  restart        - Restart the monitor"
+        echo "  logs [lines]   - Show monitor logs (default: last 50 lines)"
+        echo "  follow         - Follow monitor logs in real-time"
+        return 0
     fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+    "status")
+        check_monitor_status
+        ;;
+    "start")
+        start_monitor
+        ;;
+    "stop")
+        stop_monitor
+        ;;
+    "restart")
+        restart_monitor
+        ;;
+    "logs")
+        show_monitor_logs "$LOG_LINES"
+        ;;
+    "follow")
+        follow_monitor_logs
+        ;;
+    *)
+        # Unknown command, show status and usage
+        check_monitor_status
+        echo ""
+        echo "Unknown command: $command"
+        echo ""
+        echo "Usage: ./monitorManager.sh [command]"
+        echo "Commands:"
+        echo "  status         - Check if the monitor is running"
+        echo "  start          - Start the monitor"
+        echo "  stop           - Stop the monitor"
+        echo "  restart        - Restart the monitor"
+        echo "  logs [lines]   - Show monitor logs (default: last 50 lines)"
+        echo "  follow         - Follow monitor logs in real-time"
+        ;;
+    esac
 }
 
 # Script-specific cleanup function that will be called by common_cleanup
@@ -326,41 +367,6 @@ main() {
 
     # Check required environment variables
     check_required_env MONITOR_REQUIRED_VARS || exit 1
-
-    # Execute requested command
-    case "$COMMAND" in
-    "status")
-        check_monitor_status
-        ;;
-    "start")
-        start_monitor
-        ;;
-    "stop")
-        stop_monitor
-        ;;
-    "restart")
-        restart_monitor
-        ;;
-    "logs")
-        show_monitor_logs "$LOG_LINES"
-        ;;
-    "follow")
-        follow_monitor_logs
-        ;;
-    *)
-        # Default to showing status and usage
-        check_monitor_status
-        echo ""
-        echo "Usage: ./monitorManager.sh [command]"
-        echo "Commands:"
-        echo "  status         - Check if the monitor is running"
-        echo "  start          - Start the monitor"
-        echo "  stop           - Stop the monitor"
-        echo "  restart        - Restart the monitor"
-        echo "  logs [lines]   - Show monitor logs (default: last 50 lines)"
-        echo "  follow         - Follow monitor logs in real-time"
-        ;;
-    esac
 
     exit $?
 }

@@ -100,7 +100,7 @@ save_world() {
         print_info "Sending SaveWorld command via RCON..."
         local save_result=$(ark rcon "SaveWorld" --silent 2>&1)
 
-        if [[ "$save_result" == *"World Saved"* ]]; then
+        if contains "$save_result" "World Saved"; then
             print_success "✅ World saved successfully"
             sleep 5 # Wait a moment for save to complete
             return 0

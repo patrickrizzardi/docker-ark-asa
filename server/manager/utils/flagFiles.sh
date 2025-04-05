@@ -10,7 +10,7 @@ flag_exists() {
 
     _verify_flag_names "$flag" || exit 1
 
-    if [[ -f "$flag_file" ]]; then
+    if file_exists "$flag_file"; then
         # Check if the flag file is stale (older than specified minutes)
         if [[ $(find "$flag_file" -mmin +${stale_minutes} -print 2>/dev/null) ]]; then
             print_warning "⚠️ Found stale ${flag} lock file, removing it"
@@ -50,7 +50,7 @@ get_flag_age() {
 
     _verify_flag_names "$flag" || exit 1
 
-    if [[ ! -f "$flag_file" ]]; then
+    if ! file_exists "$flag_file"; then
         echo "0"
         return 1
     fi

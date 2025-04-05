@@ -4,7 +4,7 @@
 # ARK Server CLI Wrapper
 # Provides a unified interface for ARK Server management commands
 
-source "${MANAGER_DIR}/utils/colorPrinter.sh"
+source "${MANAGER_DIR}/utils/common.sh"
 
 # Get the name of this script (for error messages)
 SCRIPT_NAME=$(basename "$0")
@@ -19,7 +19,7 @@ fi
 # Define the commands and their descriptions
 declare -A COMMANDS=(
     ["init"]="Initialize server environment (runs automatically on startup)"
-    ["monitor"]="Start the server monitor"
+    ["monitor"]="Manage the server monitor (status, start, stop, logs, etc.)"
     ["update"]="Update the ARK server"
     ["stop"]="Stop the ARK server"
     ["start"]="Start the ARK server"
@@ -99,20 +99,21 @@ run_command() {
     esac
 
     # Check if command exists
-    if [ ! -f "$MANAGER_DIR/${script_file}.sh" ]; then
+    if file_does_not_exist "${MANAGER_DIR}/${script_file}.sh"; then
         echo -e "${RED}Error:${NC} Command '${cmd}' not found."
         echo "Run '$COMMAND_NAME --help' to see available commands."
         return 1
     fi
 
     # Check for help flag
-    if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    if contains "$*" "--help" || contains "$*" "-h"; then
         show_command_help "$cmd"
         return 0
     fi
 
     # Execute the command with all arguments
-    "$MANAGER_DIR/${script_file}.sh" "$@"
+    "${MANAGER_DIR}/${script_file}.sh" "$@"
+    return $?
 }
 
 # Function to show command-specific help
@@ -129,8 +130,21 @@ show_command_help() {
         echo "Initializes the ARK server environment. This is run automatically on container startup."
         ;;
     monitor)
-        echo -e "${YELLOW}Usage:${NC} $COMMAND_NAME monitor"
-        echo "Starts the server monitor to keep the ARK server running."
+        echo -e "${YELLOW}Usage:${NC} $COMMAND_NAME monitor [command]"
+        echo "Manages the ARK server monitor."
+        echo
+        echo -e "${YELLOW}Available commands:${NC}"
+        echo "  status       Check if the monitor is running"
+        echo "  start        Start the monitor"
+        echo "  stop         Stop the monitor"
+        echo "  restart      Restart the monitor"
+        echo "  logs         Show monitor logs"
+        echo "  follow       Follow monitor logs in real-time"
+        echo
+        echo -e "${YELLOW}Examples:${NC}"
+        echo "  $COMMAND_NAME monitor status     Check current monitor status"
+        echo "  $COMMAND_NAME monitor start      Start the monitor process"
+        echo "  $COMMAND_NAME monitor logs       View the monitor logs"
         ;;
     update)
         echo -e "${YELLOW}Usage:${NC} $COMMAND_NAME update"
@@ -203,8 +217,14 @@ show_command_help() {
 
 # Main function
 main() {
-    # Show help if no arguments or help flag
-    if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    # No arguments provided, show help
+    if equals "$#" "0"; then
+        show_help
+        return 0
+    fi
+
+    # Just --help without a command, show general help
+    if equals "$#" "1" && (equals "$1" "--help" || equals "$1" "-h"); then
         show_help
         return 0
     fi
@@ -214,6 +234,7 @@ main() {
 
     # Execute the requested command
     run_command "$command" "$@"
+    return $?
 }
 
 # Run the main function

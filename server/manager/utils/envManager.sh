@@ -8,9 +8,9 @@ _collect_missing_vars() {
     local has_missing=0
 
     for var in "${vars_array[@]}"; do
-        if [ -z "${!var}" ]; then
+        if is_empty "${!var}"; then
             has_missing=1
-            if [ -z "$missing_list_ref" ]; then
+            if is_empty "$missing_list_ref"; then
                 missing_list_ref="$var"
             else
                 missing_list_ref="$missing_list_ref, $var"
@@ -26,7 +26,7 @@ _collect_missing_vars() {
 check_required_env() {
     local -n vars=$1
 
-    if [[ -z "$vars" ]]; then
+    if is_empty "$vars"; then
         print_warning "⚠️ No required environment variables specified"
         return 0
     fi
@@ -35,7 +35,7 @@ check_required_env() {
     _collect_missing_vars vars missing_vars
     local missing_status=$?
 
-    if [ $missing_status -eq 1 ]; then
+    if equals "$missing_status" "1"; then
         print_error "❌ Environment check failed: Missing required variables: ${missing_vars}"
         return 1
     fi
@@ -47,14 +47,14 @@ check_required_env() {
 check_optional_env() {
     local -n vars=$1
 
-    if [[ -z "$vars" ]]; then
+    if is_empty "$vars"; then
         return 0
     fi
 
     print_info "Checking optional environment variables..."
 
     for var in "${vars[@]}"; do
-        if [ -z "${!var}" ]; then
+        if is_empty "${!var}"; then
             print_warning "⚠️ Warning: Optional environment variable $var is not set"
         fi
     done

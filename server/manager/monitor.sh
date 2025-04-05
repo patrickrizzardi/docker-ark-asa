@@ -67,16 +67,14 @@ check_restart_timeout() {
     local restart_timestamp_file="${ARK_DIR}/restart_timestamp.tmp"
 
     # If restart flag doesn't exist, remove timestamp file and return
-    if ! flag_exists "restart"; then
+    if ! flag_exists "restart" && file_exists "$restart_timestamp_file"; then
         print_warning "⚠️ Restart flag not found, removing timestamp file"
-        if [[ -f "$restart_timestamp_file" ]]; then
-            rm -f "$restart_timestamp_file"
-        fi
+        rm -f "$restart_timestamp_file"
         return 0
     fi
 
     # If timestamp file doesn't exist, create it with current time
-    if [[ ! -f "$restart_timestamp_file" ]]; then
+    if ! file_exists "$restart_timestamp_file"; then
         date +%s >"$restart_timestamp_file"
         return 0
     fi
@@ -117,12 +115,12 @@ check_restart_timeout() {
 # Check if a first-launch Wine/MSVCP140.dll error is occurring
 check_for_first_launch_error() {
     # Only run this check if we have access to log files
-    if [[ -z "$WINE_LOG_FILE" ]] && [[ -z "$LOG_FILE" ]]; then
+    if is_empty "$WINE_LOG_FILE" && is_empty "$LOG_FILE"; then
         return 1
     fi
 
     # Check Wine logs for MSVCP140.dll errors
-    if [[ -n "$WINE_LOG_FILE" ]] && [[ -f "$WINE_LOG_FILE" ]]; then
+    if is_not_empty "$WINE_LOG_FILE" && file_exists "$WINE_LOG_FILE"; then
         if grep -q "err:module:import_dll Loading library MSVCP140.dll.*failed" "$WINE_LOG_FILE"; then
             print_warning "⚠️ Detected MSVCP140.dll loading error (common first launch issue)"
             return 0
@@ -130,7 +128,7 @@ check_for_first_launch_error() {
     fi
 
     # Check main log for startup errors
-    if [[ -n "$LOG_FILE" ]] && [[ -f "$LOG_FILE" ]]; then
+    if is_not_empty "$LOG_FILE" && file_exists "$LOG_FILE"; then
         if grep -q "Fatal error" "$LOG_FILE" | grep -q "first launch"; then
             print_warning "⚠️ Detected fatal error during first launch"
             return 0
@@ -138,7 +136,7 @@ check_for_first_launch_error() {
     fi
 
     # Check if server process crashed without creating logs
-    if [[ -n "$LOG_FILE" ]] && [[ ! -f "$LOG_FILE" ]]; then
+    if is_not_empty "$LOG_FILE" && ! file_exists "$LOG_FILE"; then
         # Check if server was supposed to be running but no logs were created
         if ! flag_exists "start"; then
             return 1
@@ -195,14 +193,14 @@ is_update_check_due() {
     local should_display=${1:-"true"} # Whether to display status messages
 
     # If update checking is disabled, return early
-    if [[ -z "$SYSTEM_UPDATE_CHECK_INTERVAL" || "$SYSTEM_UPDATE_CHECK_INTERVAL" == "0" ]]; then
+    if is_empty "$SYSTEM_UPDATE_CHECK_INTERVAL" || equals "$SYSTEM_UPDATE_CHECK_INTERVAL" "0"; then
         [[ "$should_display" == "true" ]] && print_info "Update checking is disabled"
         return 1
     fi
 
     # Create the file to store last check time if it doesn't exist
     local last_check_file="${ARK_DIR}/last_update_check.txt"
-    if [[ ! -f "$last_check_file" ]]; then
+    if ! file_exists "$last_check_file"; then
         echo "0" >"$last_check_file"
     fi
 
@@ -241,7 +239,8 @@ check_for_updates() {
     echo "$(date +%s)" >"${ARK_DIR}/last_update_check.txt"
 
     # Call the update script with check-only mode
-    if ! ark update --check-only; then
+    update_check_result=$(capture_all_output ark update --check-only)
+    if contains "$update_check_result" "Server is already up to date"; then
         [[ "$should_display" == "true" ]] && print_success "✅ No update needed"
         return 1
     fi
@@ -259,7 +258,7 @@ check_server_health() {
     local ark_server_pid=$(get_ark_server_pid)
 
     # Skip health check if no PID provided
-    if [[ -z "$ark_server_pid" || "$ark_server_pid" == "0" ]]; then
+    if is_empty "$ark_server_pid" || equals "$ark_server_pid" "0"; then
         return 1
     fi
 
@@ -284,7 +283,7 @@ check_server_health() {
     fi
 
     # Skip RCON check if not configured
-    if [[ -z "$RCON_PORT" || -z "$ARK_ADMIN_PASSWORD" ]]; then
+    if is_empty "$RCON_PORT" || is_empty "$ARK_ADMIN_PASSWORD"; then
         return 0
     fi
 
@@ -295,25 +294,15 @@ check_server_health() {
 
     print_info "Performing deep RCON health check..."
     # Using the existing rcon.sh script in the manager directory
-    local rcon_result=$("${MANAGER_DIR}/rcon.sh" "info" --silent 2>&1)
+    local rcon_result=$(capture_all_output ark rcon info --silent)
+    local rcon_status=$?
 
-    if [[ $? -ne 0 || "$rcon_result" == *"RCON_TIMEOUT"* || "$rcon_result" == *"RCON_FAILED"* ]]; then
+    if does_not_equal "$rcon_status" "0" || contains "$rcon_result" "RCON_TIMEOUT" || contains "$rcon_result" "RCON_FAILED"; then
         print_warning "⚠️ Server unresponsive to RCON - will continue monitoring"
         return 2 # Partial health issue
     fi
 
     print_success "✅ Server is responsive via RCON"
-
-    # Additional health check: Check online player count vs max players
-    local player_info=$("${MANAGER_DIR}/rcon.sh" "listplayers" --silent 2>&1)
-    if [[ "$player_info" == *"No Players Connected"* ]]; then
-        print_info "No players currently connected"
-        return 0
-    fi
-
-    # Count the number of players (assuming one player per line)
-    local player_count=$(echo "$player_info" | grep -v "No Players Connected" | wc -l)
-    print_info "Current online players: $player_count"
     return 0
 }
 
@@ -342,7 +331,7 @@ handle_server_not_running() {
     local restart_cooldown=$4
 
     # Check if we're currently starting
-    if [[ -f "$SERVER_START_FLAG" ]]; then
+    if flag_exists "start"; then
         print_info "Server starting flag detected, waiting..."
         return 0
     fi
@@ -384,9 +373,9 @@ handle_server_running() {
     check_server_health "$ark_server_pid"
 
     # Check for updates (only on every 20th cycle to avoid spamming)
-    if ((RANDOM % 20 == 0)); then
-        check_for_updates
-    fi
+    # if ((RANDOM % 20 == 0)); then
+    check_for_updates
+    # fi
 
     return 0
 }

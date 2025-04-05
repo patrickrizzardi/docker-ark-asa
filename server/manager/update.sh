@@ -47,7 +47,7 @@ get_current_build_id() {
     print_info "Checking for current build ID from SteamCMD..."
 
     # Cache the current build ID to prevent repeatedly calling SteamCMD
-    if [[ -f "$CURRENT_BUILD_ID_FILE" ]]; then
+    if file_exists "$CURRENT_BUILD_ID_FILE"; then
         local cached_id=$(cat "$CURRENT_BUILD_ID_FILE")
         # Validate the cached ID is numeric
         if [[ "$cached_id" =~ ^[0-9]+$ ]]; then
@@ -71,7 +71,7 @@ get_current_build_id() {
         tr -d '[:space:]')
 
     # Validate build ID
-    if [[ -z "$build_id" ]] || ! [[ "$build_id" =~ ^[0-9]+$ ]]; then
+    if is_empty "$build_id" || ! [[ "$build_id" =~ ^[0-9]+$ ]]; then
         print_error "❌ Could not retrieve valid build ID from SteamCMD"
         echo "unknown"
         return 1
@@ -88,7 +88,7 @@ get_current_build_id() {
 get_installed_build_id() {
     local acf_file="${STEAM_DIR}/steamapps/appmanifest_${ASA_APPID}.acf"
 
-    if [[ ! -f "$acf_file" ]]; then
+    if ! file_exists "$acf_file"; then
         print_warning "⚠️ App manifest not found: $acf_file"
         echo "missing"
         return 1
@@ -98,7 +98,7 @@ get_installed_build_id() {
     local build_id=$(grep -oP '"buildid"\s*"\K[^"]+' "$acf_file")
 
     # Validate build ID
-    if [[ -z "$build_id" ]] || ! [[ "$build_id" =~ ^[0-9]+$ ]]; then
+    if is_empty "$build_id" || ! [[ "$build_id" =~ ^[0-9]+$ ]]; then
         print_warning "⚠️ Invalid build ID in manifest"
         echo "unknown"
         return 1
@@ -169,24 +169,93 @@ update_server() {
 
     # Check if we need to force validation
     local validation_flag=""
-    if [[ -f "${ARK_DIR}/force_validate.flag" ]]; then
+    if file_exists "${ARK_DIR}/force_validate.flag"; then
         print_warning "⚠️ Force validation flag detected"
         validation_flag="validate"
         rm -f "${ARK_DIR}/force_validate.flag"
     fi
 
-    # Run SteamCMD update command
-    loading "${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} ${validation_flag} +quit" "Updating ARK server"
+    # Create a temporary file for capturing SteamCMD output
+    local steam_output_file=$(mktemp)
 
-    if [ $? -ne 0 ]; then
-        print_error "❌ Update failed"
+    # Run SteamCMD update command with loading animation
+    print_info "Starting ARK server update..."
+    local update_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} ${validation_flag} +quit"
+
+    # Run the command with loading animation
+    eval "$update_cmd" >"$steam_output_file" 2>&1 &
+    local cmd_pid=$!
+
+    # Display loading animation
+    local elapsed=0
+    while kill -0 $cmd_pid 2>/dev/null; do
+        loading "Updating ARK server (${elapsed}s)"
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    # Get command exit status
+    wait $cmd_pid
+    local update_status=$?
+
+    # Read the output file
+    local update_output=$(cat "$steam_output_file")
+
+    # Check for specific error conditions in the output
+    if echo "$update_output" | grep -q "state is 0x6 after update job"; then
+        print_warning "⚠️ Steam reports state 0x6 - this usually means the server is already up to date"
+
+        # Log the specific error line
+        local error_line=$(echo "$update_output" | grep "state is 0x6" | head -1)
+        print_info "SteamCMD message: $error_line"
+
+        # Consider this a success as it means server is up to date
+        update_status=0
+
+        # Run a validate if not already done to ensure file integrity
+        if is_empty "$validation_flag"; then
+            print_info "Running file validation to ensure server integrity..."
+
+            # Run validation command
+            local validate_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} validate +quit"
+
+            # Run the command with loading animation
+            eval "$validate_cmd" >"$steam_output_file" 2>&1 &
+            local validate_pid=$!
+
+            # Display loading animation
+            local v_elapsed=0
+            while kill -0 $validate_pid 2>/dev/null; do
+                loading "Validating ARK server files (${v_elapsed}s)"
+                sleep 1
+                v_elapsed=$((v_elapsed + 1))
+            done
+
+            # Get validation exit status
+            wait $validate_pid
+            local validate_status=$?
+
+            if equals "$validate_status" "0"; then
+                print_success "✅ Validation completed successfully"
+            else
+                print_warning "⚠️ Validation completed with status: $validate_status"
+            fi
+        fi
+    fi
+
+    # Clean up temporary file
+    rm -f "$steam_output_file"
+
+    # Check final update status
+    if does_not_equal "$update_status" "0"; then
+        print_error "❌ Update failed with exit code: $update_status"
         return 1
     fi
 
     print_success "✅ Update completed successfully"
 
     # Cleanup unnecessary files if enabled
-    if [[ "$CLEANUP_AFTER_UPDATE" == "true" ]]; then
+    if equals "$CLEANUP_AFTER_UPDATE" "true"; then
         print_info "Cleaning up unnecessary files..."
 
         # Remove large files not needed for server
@@ -266,21 +335,21 @@ main() {
     if ! server_needs_update; then
         print_success "✅ Server is already up to date"
         # If in check-only mode, exit with non-zero code to indicate no update needed
-        [[ "$CHECK_ONLY" == "yes" ]] && exit 1
-        exit 0
+        [[ "$CHECK_ONLY" == "yes" ]] && return 1
+        return 0
     fi
 
     # If check-only mode, exit after checking for updates
     if [[ "$CHECK_ONLY" == "yes" ]]; then
         print_success "✅ UPDATE AVAILABLE! (--check-only mode, not applying update)"
         # Exit with success code to indicate update is available
-        exit 0
+        return 0
     fi
 
     # Try to acquire the update lock
     if ! acquire_update_lock; then
         print_error "❌ Another update is in progress, exiting"
-        exit 1
+        return 1
     fi
 
     # Check if server is running and stop it if needed
@@ -295,7 +364,7 @@ main() {
         # Use ark stop command with force flag if provided
         if ! ark stop $FORCE_FLAG; then
             print_error "❌ Failed to stop the server - update aborted"
-            exit 1
+            return 1
         fi
 
         print_success "✅ Server successfully stopped"
@@ -306,7 +375,7 @@ main() {
     # Update the server
     if ! update_server; then
         print_error "❌ Update failed"
-        exit 1
+        return 1
     fi
 
     # Restart the server if it was running before
@@ -315,7 +384,7 @@ main() {
 
         if ! ark start; then
             print_error "❌ Failed to restart the server"
-            exit 1
+            return 1
         fi
 
         print_success "✅ Server successfully restarted"
