@@ -96,6 +96,9 @@ run_command() {
     "monitor")
         script_file="monitorManager"
         ;;
+    "wipe")
+        script_file="wipe"
+        ;;
     esac
 
     # Check if command exists
@@ -208,6 +211,14 @@ show_command_help() {
         echo "  --list      List all available backups"
         echo "  --latest    Restore the latest backup"
         echo "  --backup N  Restore the specified backup by name or number"
+        ;;
+    wipe)
+        echo -e "${YELLOW}Usage:${NC} $COMMAND_NAME wipe [options]"
+        echo "Wipes the ARK server data."
+        echo
+        echo -e "${YELLOW}Options:${NC}"
+        echo "  --force      Force wipe the server data"
+        echo "  --help       Show help"
         ;;
     *)
         echo "No specific help available for this command."
