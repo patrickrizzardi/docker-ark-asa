@@ -3,8 +3,8 @@
 # ARK Server Plugin Management Utility
 # Provides functions to check, download, and install plugins
 
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/common.sh"
+source "${MANAGER_DIR}/utils/colorPrinter.sh"
+source "${MANAGER_DIR}/utils/fileManager.sh"
 
 # Required environment variables
 declare -a REQUIRED_VARS=(

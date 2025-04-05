@@ -1,7 +1,7 @@
 #!/bin/bash
 # Load utilities
-UTILS_PATH="$MANAGER_DIR/utils"
-source "${UTILS_PATH}/common.sh"
+source "${MANAGER_DIR}/utils/colorPrinter.sh"
+source "${MANAGER_DIR}/utils/fileManager.sh"
 
 # Set defaults
 ARK_DIR=${ARK_DIR:-"/steam/steamapps/common/asa-server"}

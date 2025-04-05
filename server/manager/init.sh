@@ -8,11 +8,11 @@
 set -e
 
 # Define absolute paths for utilities
-UTILS_PATH="${MANAGER_DIR}/utils"
-source "${UTILS_PATH}/common.sh"
+source "${MANAGER_DIR}/utils/common.sh"
 
-# Set executable flag on all utils just to be sure
-chmod +x ${UTILS_PATH}/*.sh 2>/dev/null || true
+# Set executable flag on all files and directories in the manager directory
+chmod +x ${MANAGER_DIR}/*.sh 2>/dev/null || true
+chmod +x ${MANAGER_DIR}/utils/*.sh 2>/dev/null || true
 
 # Process command line arguments
 process_command_line_args() {

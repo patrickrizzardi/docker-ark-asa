@@ -49,7 +49,7 @@
     "restart_wait": "120",
     "stale_lock_time": "30",
     "max_restart_attempts": "3",
-    "update_check_interval": "1",
+    "update_check_interval": "6",
     "initial_startup_delay": "60"
   },
 

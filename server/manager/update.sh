@@ -395,7 +395,7 @@ main() {
 
         # Create an update flag to tell the monitor not to exit but wait
         print_info "Creating update in progress flag for monitor..."
-        create_flag "updating"
+        create_flag "update"
     fi
 
     if does_not_equal "$ark_server_pid" "0"; then
@@ -405,7 +405,7 @@ main() {
         # Use ark stop command with force flag if provided
         if ! ark stop $FORCE_FLAG; then
             print_error "❌ Failed to stop the server - update aborted"
-            remove_flag "updating"
+            remove_flag "update"
             return 1
         fi
 
@@ -417,12 +417,12 @@ main() {
     # Update the server
     if ! update_server; then
         print_error "❌ Update failed"
-        remove_flag "updating"
+        remove_flag "update"
         return 1
     fi
 
     # Remove the updating flag
-    remove_flag "updating"
+    remove_flag "update"
 
     # Restart the server if it was running before
     if [[ "$server_was_running" == "true" ]]; then

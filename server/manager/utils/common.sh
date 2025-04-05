@@ -20,6 +20,8 @@ source "${UTILS_PATH}/fileManager.sh"
 source "${UTILS_PATH}/logManager.sh"
 source "${UTILS_PATH}/loadingAnimation.sh"
 source "${UTILS_PATH}/flagFiles.sh"
+source "${UTILS_PATH}/apiManager.sh"
+source "${UTILS_PATH}/pluginManager.sh"
 
 # =============================================================================
 # COMMON VARIABLES

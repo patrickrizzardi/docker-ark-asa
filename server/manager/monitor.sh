@@ -416,7 +416,7 @@ monitor_loop() {
         fi
 
         # If server is updating, wait and skip rest of checks
-        if flag_exists "update" || flag_exists "updating"; then
+        if flag_exists "update"; then
             print_info "Server update in progress, waiting..."
             sleep $SYSTEM_CHECK_INTERVAL
             continue
