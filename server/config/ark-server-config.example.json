@@ -55,8 +55,8 @@
 
   // Optional settings for the server manager and server monitor
   "system": {
-    "startup_timeout": "300", // Timeout for server startup before it is considered failed (seconds). Default is 5 minutes.
-    "startup_wait": "60", // Time to wait for server to initialize (seconds) before starting the countdown to check if the server is running. Default is 60 seconds.
+    "startup_timeout": "360", // Timeout for server startup before it is considered failed (seconds). Default is 5 minutes.
+    "startup_wait": "360", // Time to wait for server to initialize (seconds) before starting the countdown to check if the server is running. Default is 60 seconds.
     "warning_time": "5", // Countdown minutes before shutdown or restart. Default is 5 minutes.
     "shutdown_timeout": "30", // Timeout for server shutdown before it is considered failed (seconds). Default is 30 seconds.
 
@@ -66,7 +66,7 @@
     "stale_lock_time": "30", // Minutes before considering a lock stale. Default is 30 minutes.
     "max_restart_attempts": "3", // Maximum restart attempts before giving up the monitor gives up. Default is 3.
     "update_check_interval": "12", // Hours between update checks. Default is 12 hours. Set to 0 to disable update checks.
-    "initial_startup_delay": "300" // Time to wait before starting the monitor (seconds). Default is 300 seconds.
+    "initial_startup_delay": "360" // Time to wait before starting the monitor (seconds). Default is 300 seconds.
   },
 
   // Optional settings for the backup system

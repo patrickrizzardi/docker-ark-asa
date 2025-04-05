@@ -41,16 +41,16 @@
   },
 
   "system": {
-    "startup_timeout": "120",
-    "startup_wait": "60",
+    "startup_timeout": "360",
+    "startup_wait": "360",
     "warning_time": "5",
     "shutdown_timeout": "30",
     "check_interval": "30",
-    "restart_wait": "120",
+    "restart_wait": "360",
     "stale_lock_time": "30",
     "max_restart_attempts": "3",
     "update_check_interval": "6",
-    "initial_startup_delay": "300"
+    "initial_startup_delay": "360"
   },
 
   "backup": {

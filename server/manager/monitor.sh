@@ -202,11 +202,10 @@ handle_first_launch_recovery() {
 
 # Function to check if it's time to check for updates
 is_update_check_due() {
-    local should_display=${1:-"true"} # Whether to display status messages
 
     # If update checking is disabled, return early
     if is_empty "$SYSTEM_UPDATE_CHECK_INTERVAL" || equals "$SYSTEM_UPDATE_CHECK_INTERVAL" "0"; then
-        [[ "$should_display" == "true" ]] && print_info "Update checking is disabled"
+        print_info "Update checking is disabled"
         return 1
     fi
 
@@ -228,7 +227,7 @@ is_update_check_due() {
         local hours=$((time_until_next_check / 3600))
         local minutes=$(((time_until_next_check % 3600) / 60))
 
-        [[ "$should_display" == "true" ]] && print_info "Next update check in ${hours}h ${minutes}m"
+        print_info "Next update check in ${hours}h ${minutes}m"
         return 1
     fi
 
@@ -238,14 +237,13 @@ is_update_check_due() {
 
 # Function to check for updates
 check_for_updates() {
-    local should_display=${1:-"true"} # Whether to display status messages
 
     # Check if it's time to check for updates
-    if ! is_update_check_due "$should_display"; then
-        return 1
+    if ! is_update_check_due; then
+        return 0
     fi
 
-    [[ "$should_display" == "true" ]] && print_info "Checking for ARK server updates..."
+    print_info "Checking for ARK server updates..."
 
     # Update the last check time
     echo "$(date +%s)" >"${ARK_DIR}/last_update_check.txt"
@@ -253,11 +251,11 @@ check_for_updates() {
     # Call the update script with check-only mode
     update_check_result=$(capture_all_output ark update --check-only)
     if contains "$update_check_result" "Server is already up to date"; then
-        [[ "$should_display" == "true" ]] && print_success "✅ No update needed"
-        return 1
+        print_success "✅ No update needed"
+        return 0
     fi
 
-    [[ "$should_display" == "true" ]] && print_warning "⚠️ Update available! Will perform update on next check."
+    print_warning "⚠️ Update available! Will perform update on next check."
     return 0
 }
 
