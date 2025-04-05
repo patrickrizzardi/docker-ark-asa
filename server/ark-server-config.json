@@ -41,7 +41,7 @@
   },
 
   "system": {
-    "startup_timeout": "60",
+    "startup_timeout": "120",
     "startup_wait": "60",
     "warning_time": "5",
     "shutdown_timeout": "30",
@@ -50,7 +50,7 @@
     "stale_lock_time": "30",
     "max_restart_attempts": "3",
     "update_check_interval": "6",
-    "initial_startup_delay": "60"
+    "initial_startup_delay": "300"
   },
 
   "backup": {
