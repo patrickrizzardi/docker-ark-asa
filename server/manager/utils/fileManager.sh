@@ -37,7 +37,9 @@ ensure_dir() {
     local dir="$1"
     local perm="${2:-755}"
 
-    [[ -d "$dir" ]] && return 0
+    if dir_exists "$dir"; then
+        return 0
+    fi
 
     mkdir -p "$dir" || {
         print_error "Failed to create directory: $dir"
@@ -60,15 +62,15 @@ ensure_dir() {
 check_file() {
     local file="$1"
 
-    [[ ! -f "$file" ]] && {
+    if file_does_not_exist "$file"; then
         print_error "File does not exist: $file"
         return 1
-    }
+    fi
 
-    [[ ! -r "$file" ]] && {
+    if is_not_readable "$file"; then
         print_error "File is not readable: $file"
         return 1
-    }
+    fi
 
     return 0
 }
@@ -131,10 +133,10 @@ cleanup_backups() {
     local backup_dir="${3:-$(dirname "$file_pattern")}"
     local filename=$(basename "$file_pattern")
 
-    [[ ! -d "$backup_dir" ]] && {
+    if dir_does_not_exist "$backup_dir"; then
         print_warning "Backup directory does not exist: $backup_dir"
         return 0
-    }
+    fi
 
     # Find all backup files sorted by modification time (oldest first)
     local old_backups=$(find "$backup_dir" -name "${filename}*.bak" -type f | sort -t. -k2)

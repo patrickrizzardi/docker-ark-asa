@@ -23,7 +23,7 @@ get_server_pid() {
 is_process_running() {
     local process_name="$1"
     local pid=$(get_server_pid "$process_name")
-    [[ "$pid" != "0" ]]
+    does_not_equal "$pid" "0"
 }
 
 # Get the PID of the running ARK server (either API or game server)
@@ -32,14 +32,14 @@ is_process_running() {
 get_ark_server_pid() {
     # Try ArkAscendedServer.exe first
     local pid=$(get_server_pid "ArkAscendedServer.exe")
-    if [[ "$pid" != "0" ]]; then
+    if does_not_equal "$pid" "0"; then
         echo "$pid"
         return 0
     fi
 
     # Try AsaApiLoader.exe as fallback
     pid=$(get_server_pid "AsaApiLoader.exe")
-    if [[ "$pid" != "0" ]]; then
+    if does_not_equal "$pid" "0"; then
         echo "$pid"
         return 0
     fi

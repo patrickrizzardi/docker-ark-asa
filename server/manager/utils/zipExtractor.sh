@@ -34,10 +34,10 @@ extract_zip() {
     ensure_dir "$destination" || return 1
 
     # Check if file exists
-    [[ ! -f "$zip_file" ]] && {
+    if file_does_not_exist "$zip_file"; then
         print_error "Zip file does not exist: $zip_file"
         return 1
-    }
+    fi
 
     # Determine if we should use flatten mode
     local use_flatten=0
@@ -217,14 +217,14 @@ download_and_extract() {
     }
 
     # Verify file was downloaded successfully
-    [[ ! -f "$TEMP_ZIP_FILE" || ! -s "$TEMP_ZIP_FILE" ]] && {
+    if file_does_not_exist "$TEMP_ZIP_FILE" || is_empty_file "$TEMP_ZIP_FILE"; then
         print_error "Download failed or created empty file: $url"
         if file_exists "$TEMP_ZIP_FILE"; then
             rm -f "$TEMP_ZIP_FILE"
             TEMP_ZIP_FILE=""
         fi
         return 1
-    }
+    fi
 
     print_success "Download completed: $TEMP_ZIP_FILE"
 

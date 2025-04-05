@@ -235,10 +235,10 @@ install_plugins() {
         return 1
     fi
 
-    [[ ! -d "$ark_dir" ]] && {
+    if dir_does_not_exist "$ark_dir"; then
         print_error "ARK directory does not exist: $ark_dir"
         return 1
-    }
+    fi
 
     print_script_header "Installing/Updating Plugins"
 
@@ -316,10 +316,10 @@ install_specific_plugin() {
         return 1
     fi
 
-    [[ ! -d "$ark_dir" ]] && {
+    if dir_does_not_exist "$ark_dir"; then
         print_error "ARK directory does not exist: $ark_dir"
         return 1
-    }
+    fi
 
     # Check if plugin exists in the definitions
     if is_not_executable "${PLUGIN_VERSIONS[$plugin_name]}"; then

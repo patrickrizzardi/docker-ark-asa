@@ -206,8 +206,6 @@ set_basic_status_variables() {
 
 # Get basic server status information
 get_basic_status() {
-    print_script_header "ARK Server Status"
-
     # Get status data through the variables
     set_basic_status_variables
     local status_result=$?
@@ -257,14 +255,14 @@ setup_eos_credentials() {
     print_info "Setting up EOS API credentials..."
 
     # Check PDB is still available
-    [[ ! -f "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb" ]] && {
+    if file_does_not_exist "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb"; then
         print_error "❌ Missing PDB file: ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb"
         print_info "This file is needed to extract server credentials."
         return 1
-    }
+    fi
 
     # Check if PDB tool exists, if not download it
-    [[ ! -f "$PDB_TOOL" ]] && {
+    if file_does_not_exist "$PDB_TOOL"; then
         print_info "Downloading pdb-sym2addr-rs tool..."
 
         local download_file="${MANAGER_DIR}/pdb-sym2addr-x86_64-unknown-linux-musl.tar.gz"
@@ -293,21 +291,21 @@ setup_eos_credentials() {
         }
 
         # Check if the tool exists after extraction
-        [[ ! -f "$PDB_TOOL" ]] && {
+        if file_does_not_exist "$PDB_TOOL"; then
             print_error "❌ Tool file not found after extraction"
             return 1
-        }
+        fi
 
         chmod +x "$PDB_TOOL"
 
         # Verify it's executable
-        [[ ! -x "$PDB_TOOL" ]] && {
+        if is_not_executable "$PDB_TOOL"; then
             print_error "❌ Failed to make pdb-sym2addr tool executable"
             return 1
-        }
+        fi
 
         print_success "✅ PDB tool downloaded and set up successfully"
-    }
+    fi
 
     # Extract symbols
     print_info "Extracting EOS credentials from PDB file..."
@@ -336,10 +334,10 @@ setup_eos_credentials() {
     local creds=$(echo -n "$client_id:$client_secret" | base64 -w0)
     echo "${creds},${deployment_id}" >"$EOS_FILE"
 
-    [[ ! -f "$EOS_FILE" ]] && {
+    if file_does_not_exist "$EOS_FILE"; then
         print_error "❌ Failed to save credentials to file"
         return 1
-    }
+    fi
 
     # Clean up - remove PDB tool to avoid bloat
     if file_exists "$PDB_TOOL"; then
@@ -559,9 +557,6 @@ get_detailed_status() {
     set_detailed_status_variables
     local status_result=$?
 
-    # Print the header
-    print_script_header "ARK Server Status (Detailed)"
-
     # Process is not running
     if equals "$SERVER_STATUS" "OFFLINE"; then
         format_label_value "Server Status:" "$(print_status_box "$SERVER_STATUS" "$SERVER_STATUS_COLOR")"
@@ -704,11 +699,13 @@ main() {
     # Check required environment variables
     check_required_env REQUIRED_VARS || exit 1
 
+    print_script_header "ARK Server Status"
+
     # Display status based on mode
     if equals "$SHOW_FULL_STATUS" "yes"; then
-        get_detailed_status
+        loading get_detailed_status "Getting detailed status..."
     else
-        get_basic_status
+        loading get_basic_status "Getting basic status..."
     fi
 
     exit $?

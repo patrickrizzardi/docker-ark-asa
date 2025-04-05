@@ -98,7 +98,7 @@ save_world() {
     # Attempt to save the world using RCON if configured
     if [ -n "$NETWORK_RCON_PORT" ] && [ -n "$SERVER_ADMIN_PASSWORD" ]; then
         print_info "Sending SaveWorld command via RCON..."
-        local save_result=$(ark rcon "SaveWorld" --silent 2>&1)
+        local save_result=$(capture_all_output ark rcon "SaveWorld" --silent)
 
         if contains "$save_result" "World Saved"; then
             print_success "✅ World saved successfully"

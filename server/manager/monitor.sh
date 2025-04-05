@@ -142,7 +142,7 @@ check_for_first_launch_error() {
             return 1
         fi
 
-        if [[ "$(get_ark_server_pid)" != "0" ]]; then
+        if does_not_equal "$(get_ark_server_pid)" "0"; then
             return 1
         fi
 
@@ -168,7 +168,13 @@ handle_first_launch_recovery() {
 
     # Kill any stuck processes
     print_info "Stopping any running server processes..."
-    ark stop --force || print_error "❌ Failed to forcefully terminate server process"
+    output_stop=$(capture_all_output ark stop --force)
+    output_status=$?
+
+    if does_not_equal "$output_status" "0"; then
+        print_error "❌ Failed to forcefully terminate server process"
+        return $output_status
+    fi
 
     # Remove flag files
     remove_flag "start"
@@ -182,7 +188,13 @@ handle_first_launch_recovery() {
 
     # Restart the server with special flags if needed
     print_info "Restarting server after recovery..."
-    ark start || print_error "❌ Failed to restart after recovery"
+    output_start=$(capture_all_output ark start)
+    output_status=$?
+
+    if does_not_equal "$output_status" "0"; then
+        print_error "❌ Failed to restart after recovery"
+        return $output_status
+    fi
 
     print_success "✅ First-launch recovery procedure completed"
     sleep SYSTEM_STARTUP_WAIT
@@ -283,23 +295,23 @@ check_server_health() {
     fi
 
     # Skip RCON check if not configured
-    if is_empty "$RCON_PORT" || is_empty "$ARK_ADMIN_PASSWORD"; then
+    if is_empty "$NETWORK_RCON_PORT" || is_empty "$SERVER_ADMIN_PASSWORD"; then
         return 0
     fi
 
     # Only do RCON check occasionally (about once every 10 checks)
-    if ((RANDOM % 10 != 0)); then
+    local random_number=$((RANDOM % 10))
+    if does_not_equal "$random_number" "0"; then
         return 0
     fi
 
     print_info "Performing deep RCON health check..."
     # Using the existing rcon.sh script in the manager directory
     local rcon_result=$(capture_all_output ark rcon info --silent)
-    local rcon_status=$?
 
-    if does_not_equal "$rcon_status" "0" || contains "$rcon_result" "RCON_TIMEOUT" || contains "$rcon_result" "RCON_FAILED"; then
+    if contains "$rcon_result" "with exit code: 1" || contains "$rcon_result" "failed" || contains "$rcon_result" "error" || contains "$rcon_result" "connection refused" || contains "$rcon_result" "not responding" || contains "$rcon_result" "RCON timeout"; then
         print_warning "⚠️ Server unresponsive to RCON - will continue monitoring"
-        return 2 # Partial health issue
+        return 0 # Partial health issue
     fi
 
     print_success "✅ Server is responsive via RCON"
@@ -314,9 +326,12 @@ restart_server() {
     print_warning "⚠️ ARK server process not found! Initiating restart..."
     print_info "Running start script (attempt $restart_attempts of $max_attempts)..."
 
-    if ! "${MANAGER_DIR}/start.sh"; then
+    output=$(capture_all_output ark start)
+    output_status=$?
+
+    if does_not_equal "$output_status" "0"; then
         print_error "❌ Failed to restart the server"
-        return 1
+        return $output_status
     fi
 
     print_success "✅ Server restart initiated successfully"
@@ -373,9 +388,9 @@ handle_server_running() {
     check_server_health "$ark_server_pid"
 
     # Check for updates (only on every 20th cycle to avoid spamming)
-    # if ((RANDOM % 20 == 0)); then
-    check_for_updates
-    # fi
+    if ((RANDOM % 20 == 0)); then
+        check_for_updates
+    fi
 
     return 0
 }
@@ -401,7 +416,7 @@ monitor_loop() {
         fi
 
         # If server is updating, wait and skip rest of checks
-        if flag_exists "update"; then
+        if flag_exists "update" || flag_exists "updating"; then
             print_info "Server update in progress, waiting..."
             sleep $SYSTEM_CHECK_INTERVAL
             continue
@@ -412,7 +427,7 @@ monitor_loop() {
             print_warning "⚠️ Detected first-launch errors, initiating recovery..."
 
             # Only attempt recovery if we haven't already tried
-            if [[ ! -f "${ARK_DIR}/first_launch_recovery_completed" ]]; then
+            if file_does_not_exist "${ARK_DIR}/first_launch_recovery_completed"; then
                 handle_first_launch_recovery
             else
                 print_info "Recovery already attempted once, will not retry automatically"
@@ -426,12 +441,12 @@ monitor_loop() {
         # Check if the server process is running
         local ark_server_pid=$(get_ark_server_pid)
 
-        if [[ "$ark_server_pid" == "0" ]]; then
+        if equals "$ark_server_pid" "0"; then
             # Handle case when server is not running
             local result=$(handle_server_not_running "$restart_attempts" "$SYSTEM_MAX_RESTART_ATTEMPTS" "$last_restart_time" "$SYSTEM_RESTART_WAIT")
             local status=$?
 
-            if [[ $status -eq 0 && -n "$result" ]]; then
+            if equals "$status" "0" && is_not_empty "$result"; then
                 # Update tracking variables from result
                 IFS=';' read -r restart_attempts last_restart_time <<<"$result"
             fi

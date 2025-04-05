@@ -87,11 +87,11 @@ verify_server_started() {
     while [ $elapsed -lt $timeout ]; do
         # Check for server process
         local ark_server_pid=$(get_ark_server_pid)
-        if [[ "$ark_server_pid" != "0" ]]; then
+        if does_not_equal "$ark_server_pid" "0"; then
             # Check if the server is actually responsive using RCON
             if is_not_empty "$NETWORK_RCON_PORT" && is_not_empty "$SERVER_ADMIN_PASSWORD"; then
                 loading "Checking server responsiveness via RCON... (${elapsed}s/${timeout}s)"
-                local rcon_output=$(ark rcon info --silent 2>&1)
+                local rcon_output=$(capture_all_output ark rcon info --silent)
                 local rcon_status=$?
 
                 if equals "$rcon_status" "0" && does_not_contain "$rcon_output" "RCON_TIMEOUT" && does_not_contain "$rcon_output" "RCON_FAILED"; then
@@ -416,7 +416,7 @@ check_server_running() {
     print_info "Checking server status..."
     local ark_server_pid=$(get_ark_server_pid)
 
-    if [[ "$ark_server_pid" == "0" ]]; then
+    if equals "$ark_server_pid" "0"; then
         print_info "No ARK server is currently running"
         return 0
     fi

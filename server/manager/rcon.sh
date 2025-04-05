@@ -29,7 +29,7 @@ parse_args() {
     COMMAND=""
 
     for arg in "$@"; do
-        if [[ "$arg" != "--silent" && -z "$COMMAND" ]]; then
+        if does_not_equal "$arg" "--silent" && is_empty "$COMMAND"; then
             COMMAND="$arg"
         fi
     done
@@ -88,11 +88,11 @@ execute_rcon() {
 
     # Execute the command
     local output
-    output=$("${cmd_line[@]}" 2>&1)
+    output=$(capture_all_output "${cmd_line[@]}")
     local status=$?
 
     # Handle error cases
-    if [[ $status -ne 0 ]]; then
+    if does_not_equal "$status" "0"; then
         if contains "$output" "i/o timeout"; then
             print_error "RCON timeout - server not responding"
         elif contains "$output" "connection refused"; then

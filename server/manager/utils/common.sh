@@ -51,7 +51,7 @@ common_cleanup() {
     local duration=$(($(date +%s) - SCRIPT_START_TIME))
 
     # Only print completion message if not in silent mode
-    if [[ "$COMMON_SILENT" != "true" ]]; then
+    if does_not_equal "$COMMON_SILENT" "true"; then
         print_info "Script ${SCRIPT_NAME} completed in ${duration} seconds with exit code: ${exit_code}"
     fi
 

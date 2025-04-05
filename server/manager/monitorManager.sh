@@ -107,7 +107,7 @@ check_monitor_status() {
     print_script_header "🔍 Checking ARK Server Monitor Status"
     local pid=$(get_monitor_pid)
 
-    if [[ "$pid" == "0" ]]; then
+    if equals "$pid" "0"; then
         print_warning "⚠️ Monitor is not running"
         return 1
     fi
@@ -138,7 +138,7 @@ start_monitor() {
     # First check if it's already running
     local pid=$(get_monitor_pid)
 
-    if [[ "$pid" != "0" ]]; then
+    if does_not_equal "$pid" "0"; then
         print_warning "⚠️ Monitor is already running (PID: $pid)"
         return 0
     fi
@@ -205,7 +205,7 @@ force_stop_monitor() {
 stop_monitor() {
     local pid=$(get_monitor_pid)
 
-    if [[ "$pid" == "0" ]]; then
+    if equals "$pid" "0"; then
         print_warning "⚠️ Monitor is not running"
         return 0
     fi
@@ -257,7 +257,7 @@ restart_monitor() {
 
 # Show monitor logs
 show_monitor_logs() {
-    if [[ ! -f "$MONITOR_LOG" ]]; then
+    if file_does_not_exist "$MONITOR_LOG"; then
         print_error "❌ Monitor log file not found at: $MONITOR_LOG"
         return 1
     fi
@@ -271,7 +271,7 @@ show_monitor_logs() {
 
 # Follow monitor logs in real-time
 follow_monitor_logs() {
-    if [[ ! -f "$MONITOR_LOG" ]]; then
+    if file_does_not_exist "$MONITOR_LOG"; then
         print_error "❌ Monitor log file not found at: $MONITOR_LOG"
         return 1
     fi

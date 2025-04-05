@@ -86,8 +86,8 @@ loading() {
         rm -f "$tmp_out"
 
         # Only display completion message if not in silent mode
-        if [ "$COMMON_SILENT" != "true" ]; then
-            if [ $status -eq 0 ]; then
+        if does_not_equal "$COMMON_SILENT" "true"; then
+            if equals "$status" "0"; then
                 echo -e "${GREEN}✅ ${message} completed${NC}"
             else
                 echo -e "${RED}❌ ${message} failed${NC}"

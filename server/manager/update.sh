@@ -129,7 +129,7 @@ server_needs_update() {
     print_info "🟢 Server Installed Build ID: $installed_build"
 
     # Compare build IDs
-    if [[ "$current_build" != "$installed_build" ]]; then
+    if does_not_equal "$current_build" "$installed_build"; then
         print_success "✅ UPDATE AVAILABLE - Current: $current_build, Installed: $installed_build"
         return 0
     else
@@ -284,6 +284,35 @@ cleanup() {
     print_info "Update script exiting with code: $?"
 }
 
+# Function to get monitor process ID if running
+get_monitor_pid() {
+    local MONITOR_PID_FILE="${ARK_DIR}/monitor.pid"
+
+    if file_exists "$MONITOR_PID_FILE"; then
+        local pid=$(cat "$MONITOR_PID_FILE")
+        # Check if process exists
+        if ps -p "$pid" >/dev/null 2>&1; then
+            if [[ $(ps -p "$pid" -o comm= | grep -c "monitor.sh") -gt 0 ]]; then
+                echo "$pid"
+                return 0
+            fi
+        fi
+        # PID file exists but process doesn't - clean up stale file
+        rm -f "$MONITOR_PID_FILE"
+    fi
+
+    # Look for the monitor process
+    local pids=$(pgrep -f "bash.*monitor.sh" 2>/dev/null || true)
+    if is_not_empty "$pids"; then
+        # Return the first matching PID
+        echo "$pids" | head -n 1
+        return 0
+    fi
+
+    echo "0"
+    return 1
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
@@ -357,13 +386,26 @@ main() {
     local server_was_running=false
     local ark_server_pid=$(get_ark_server_pid)
 
-    if [[ "$ark_server_pid" != "0" ]]; then
+    # Check if monitor is running and remember its status
+    local monitor_was_running=false
+    local monitor_pid=$(get_monitor_pid)
+    if does_not_equal "$monitor_pid" "0"; then
+        print_info "Monitor is running, will preserve its state"
+        monitor_was_running=true
+
+        # Create an update flag to tell the monitor not to exit but wait
+        print_info "Creating update in progress flag for monitor..."
+        create_flag "updating"
+    fi
+
+    if does_not_equal "$ark_server_pid" "0"; then
         print_info "Server is running, stopping it before update"
         server_was_running=true
 
         # Use ark stop command with force flag if provided
         if ! ark stop $FORCE_FLAG; then
             print_error "❌ Failed to stop the server - update aborted"
+            remove_flag "updating"
             return 1
         fi
 
@@ -375,8 +417,12 @@ main() {
     # Update the server
     if ! update_server; then
         print_error "❌ Update failed"
+        remove_flag "updating"
         return 1
     fi
+
+    # Remove the updating flag
+    remove_flag "updating"
 
     # Restart the server if it was running before
     if [[ "$server_was_running" == "true" ]]; then
@@ -388,6 +434,19 @@ main() {
         fi
 
         print_success "✅ Server successfully restarted"
+    fi
+
+    # If monitor was running but got stopped, restart it
+    if [[ "$monitor_was_running" == "true" ]]; then
+        # Check if monitor is still running
+        monitor_pid=$(get_monitor_pid)
+        if [[ "$monitor_pid" == "0" ]]; then
+            print_info "Restarting monitor..."
+            ark monitor start
+            print_success "✅ Monitor restarted"
+        else
+            print_info "Monitor is still running, no need to restart"
+        fi
     fi
 
     print_success "🎮 ARK server update completed"

@@ -60,7 +60,7 @@ check_server_status() {
     local ark_server_pid=$(get_ark_server_pid)
 
     # Check if server is running
-    if [ "$ark_server_pid" != "0" ]; then
+    if does_not_equal "$ark_server_pid" "0"; then
         print_error "❌ ARK server is currently running"
         print_warning "⚠️ Please stop the server first with 'ark stop' command"
         return 1
@@ -86,7 +86,7 @@ select_backup() {
     local backup_count=${#backup_files[@]}
 
     # Check if any backups exist
-    if [ "$backup_count" -eq 0 ]; then
+    if equals "$backup_count" "0"; then
         print_error "❌ No backup archives found"
         return 1
     fi
@@ -133,7 +133,7 @@ confirm_restore() {
     print_info "Are you sure you want to restore this backup? (y/N): "
     read -r confirm
 
-    if [[ "${confirm,,}" != "y" ]]; then
+    if does_not_equal "${confirm,,}" "y"; then
         print_warning "⚠️ Restore cancelled by user"
         return 1
     fi

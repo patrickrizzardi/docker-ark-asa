@@ -135,14 +135,14 @@ tail_logs() {
         fi
 
         # Check if we have any log files to tail and if they've changed
-        if [ -z "$files_to_tail" ]; then
+        if is_empty "$files_to_tail"; then
             echo -e "${COLOR_UNKNOWN}Waiting for log files to appear...${COLOR_RESET}"
             sleep $CHECK_INTERVAL
             continue
         fi
 
         # Check if the files list has changed
-        if [ "$files_to_tail" != "$current_files" ]; then
+        if does_not_equal "$files_to_tail" "$current_files"; then
             # Kill previous tail process if it exists
             if [ -n "$TAIL_PID" ]; then
                 kill -9 $TAIL_PID 2>/dev/null || true

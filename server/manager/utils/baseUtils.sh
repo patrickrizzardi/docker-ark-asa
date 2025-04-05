@@ -119,6 +119,54 @@ is_executable() { [[ -x "$1" ]]; }
 # fi
 is_not_executable() { [[ ! -x "$1" ]]; }
 
+# Check if a file is readable
+# Returns 0 (true) if readable, 1 (false) if not
+# Example usage:
+# if is_readable "/path/to/file.txt"; then
+#     echo "File is readable"
+# fi
+is_readable() { [[ -r "$1" ]]; }
+
+# Check if a file is not readable
+# Returns 0 (true) if not readable, 1 (false) if it is
+# Example usage:
+# if is_not_readable "/path/to/file.txt"; then
+#     echo "File is not readable"
+# fi
+is_not_readable() { [[ ! -r "$1" ]]; }
+
+# Check if a file is writable
+# Returns 0 (true) if writable, 1 (false) if not
+# Example usage:
+# if is_writable "/path/to/file.txt"; then
+#     echo "File is writable"
+# fi
+is_writable() { [[ -w "$1" ]]; }
+
+# Check if a file is not writable
+# Returns 0 (true) if not writable, 1 (false) if it is
+# Example usage:
+# if is_not_writable "/path/to/file.txt"; then
+#     echo "File is not writable"
+# fi
+is_not_writable() { [[ ! -w "$1" ]]; }
+
+# Check if a file is empty
+# Returns 0 (true) if empty, 1 (false) if not
+# Example usage:
+# if is_empty_file "/path/to/file.txt"; then
+#     echo "File is empty"
+# fi
+is_empty_file() { [[ -s "$1" ]]; }
+
+# Check if a file is not empty
+# Returns 0 (true) if not empty, 1 (false) if it is
+# Example usage:
+# if is_not_empty_file "/path/to/file.txt"; then
+#     echo "File is not empty"
+# fi
+is_not_empty_file() { [[ ! -s "$1" ]]; }
+
 # =============================================================================
 # COMMAND UTILITIES
 # =============================================================================
