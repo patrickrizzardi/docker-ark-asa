@@ -104,7 +104,7 @@ RUN set -ex \
     && chmod +x ${USER_SCRIPTS}/rcon
 
 # Copy scripts and configurations (separated for better cache utilization)
-COPY --chown=${USER} --chmod=644 ./ark-server-config.json /ark-server-config.json
+COPY --chown=${USER} --chmod=644 ./config ${ARK_DIR}/ShooterGame/Saved/Config/WindowsServer
 COPY --chown=${USER} --chmod=755 ./manager ${MANAGER_DIR}
 COPY --chown=${USER} --chmod=755 ./entrypoint.sh /entrypoint.sh
 

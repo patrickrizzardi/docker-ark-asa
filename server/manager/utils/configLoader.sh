@@ -12,7 +12,7 @@ set -eo pipefail
 
 # Main function to load config
 load_config() {
-    local CONFIG_FILE="/ark-server-config.json"
+    local CONFIG_FILE="${ARK_DIR}/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json"
 
     # Check if config file exists
     if [ ! -f "$CONFIG_FILE" ]; then

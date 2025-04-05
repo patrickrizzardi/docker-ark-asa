@@ -1,0 +1,593 @@
+{
+  "Mysql": {
+    "UseMysql": true,
+    "MysqlHost": "db",
+    "MysqlUser": "app",
+    "MysqlPass": "password",
+    "MysqlDB": "app",
+    "MysqlPort": 3306
+  },
+  "General": {
+    "Discord": {
+      "Enabled": false,
+      "SenderName": "ArkShop",
+      "URL": ""
+    },
+    "TimedPointsReward": {
+      "Enabled": true,
+      "Interval": 15,
+      "StackRewards": false,
+      "AlwaysSendNotifications": false,
+      "Groups": {
+        "Default": {
+          "Amount": 20
+        },
+        "Ramshackle": {
+          "Amount": 35
+        },
+        "Apprentice": {
+          "Amount": 50
+        },
+        "Journeyman": {
+          "Amount": 75
+        },
+        "Mastercraft": {
+          "Amount": 100
+        }
+      }
+    },
+    "ItemsPerPage": 15,
+    "ShopDisplayTime": 15.0,
+    "ShopTextSize": 1.3,
+    "DbPathOverride": "",
+    "DefaultKit": "",
+    "GiveDinosInCryopods": true,
+    "CryoLimitedTime": false,
+    "UseOriginalTradeCommandWithUI": false,
+    "PreventUseNoglin": true,
+    "PreventUseUnconscious": true,
+    "PreventUseHandcuffed": true,
+    "PreventUseCarried": true
+  },
+  "Kits": {
+    "starter": {
+      "DefaultAmount": 1,
+      "Description": "Starter kit (carno with saddle)",
+      "OnlyFromSpawn": false,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponStoneHatchet.PrimalItem_WeaponStoneHatchet'"
+        },
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponStonePick.PrimalItem_WeaponStonePick'"
+        }
+      ],
+      "Dinos": [
+        {
+          "Level": 35,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Carno/Carno_Character_BP.Carno_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_CarnoSaddle.PrimalItemArmor_CarnoSaddle'"
+        }
+      ]
+    },
+    "DiscordPT": {
+      "DefaultAmount": 1,
+      "Description": "Free PT for joining discord",
+      "Permissions": "JoinedDiscord,Admins",
+      "Dinos": [
+        {
+          "Level": 150,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Ptero/Ptero_Character_BP.Ptero_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_PteroSaddle.PrimalItemArmor_PteroSaddle'"
+        }
+      ]
+    },
+    "Referral": {
+      "DefaultAmount": 1,
+      "Description": "Free kit for referring a friend",
+      "Permissions": "Affiliate,Admins",
+      "Dinos": [
+        {
+          "Level": 200,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Doedicurus/Doed_Character_BP.Doed_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_DoedSaddle.PrimalItemArmor_DoedSaddle'"
+        },
+        {
+          "Level": 200,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Ankylo/Ankylo_Character_BP.Ankylo_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_AnkyloSaddle.PrimalItemArmor_AnkyloSaddle'"
+        },
+        {
+          "Level": 300,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Equus/Equus_Character_BP_Unicorn.Equus_Character_BP_Unicorn'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_EquusSaddle.PrimalItemArmor_EquusSaddle'"
+        }
+      ]
+    },
+    "Ramshackle": {
+      "DefaultAmount": 1,
+      "Description": "Ramshackle Subscription Kit",
+      "Permissions": "Ramshackle,Apprentice,Journeyman,Mastercraft,Admins",
+      "Items": [
+        {
+          "Quality": 1,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMetalHatchet.PrimalItem_WeaponMetalHatchet'"
+        },
+        {
+          "Quality": 1,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMetalPick.PrimalItem_WeaponMetalPick'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_AnvilBench.PrimalItemStructure_AnvilBench'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_Forge.PrimalItemStructure_Forge'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_MortarAndPestle.PrimalItemStructure_MortarAndPestle'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 5,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Stone/PrimalItemStructure_StoneDoor.PrimalItemStructure_StoneDoor'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 100,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Stone/PrimalItemStructure_StoneWall.PrimalItemStructure_StoneWall'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 25,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Stone/PrimalItemStructure_StoneFloor.PrimalItemStructure_StoneFloor'"
+        }
+      ],
+      "Dinos": [
+        {
+          "Level": 200,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Saber/Saber_Character_BP.Saber_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_SaberSaddle.PrimalItemArmor_SaberSaddle'"
+        }
+      ]
+    },
+    "Apprentice": {
+      "DefaultAmount": 1,
+      "Description": "Apprentice Subscription Kit",
+      "Permissions": "Apprentice,Journeyman,Mastercraft,Admins",
+      "Items": [
+        {
+          "Quality": 2,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMetalHatchet.PrimalItem_WeaponMetalHatchet'"
+        },
+        {
+          "Quality": 2,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMetalPick.PrimalItem_WeaponMetalPick'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_Fabricator.PrimalItemStructure_Fabricator'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_IndustrialForge.PrimalItemStructure_IndustrialForge'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 2,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_Bed_Modern.PrimalItemStructure_Bed_Modern'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 10,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_Turret.PrimalItemStructure_Turret'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 5000,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItemAmmo_AdvancedRifleBullet.PrimalItemAmmo_AdvancedRifleBullet'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 500,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Narcotic.PrimalItemConsumable_Narcotic'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 500,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Gasoline.PrimalItemResource_Gasoline'"
+        },
+        {
+          "Quality": 2,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMachinedShotgun.PrimalItem_WeaponMachinedShotgun'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 500,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItemAmmo_SimpleShotgunBullet.PrimalItemAmmo_SimpleShotgunBullet'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_IceBox.PrimalItemStructure_IceBox'"
+        }
+      ],
+      "Dinos": [
+        {
+          "Level": 250,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Argentavis/Argent_Character_BP.Argent_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_ArgentavisSaddle.PrimalItemArmor_ArgentavisSaddle'"
+        }
+      ]
+    },
+    "Journeyman": {
+      "DefaultAmount": 1,
+      "Description": "Journeyman Subscription Kit",
+      "Permissions": "Journeyman,Mastercraft,Admins",
+      "Items": [
+        {
+          "Quality": 4,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMetalHatchet.PrimalItem_WeaponMetalHatchet'"
+        },
+        {
+          "Quality": 4,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItem_WeaponMetalPick.PrimalItem_WeaponMetalPick'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 3,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_Fabricator.PrimalItemStructure_Fabricator'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 4,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_IndustrialForge.PrimalItemStructure_IndustrialForge'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 200,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Metal/PrimalItemStructure_MetalWall.PrimalItemStructure_MetalWall'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 5,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Metal/PrimalItemStructure_MetalDoor.PrimalItemStructure_MetalDoor'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 10000,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Weapons/PrimalItemAmmo_AdvancedRifleBullet.PrimalItemAmmo_AdvancedRifleBullet'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_Grill.PrimalItemStructure_Grill'"
+        },
+
+        {
+          "ForceBlueprint": false,
+          "Amount": 2,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Pipes/PrimalItemStructure_PowerGenerator.PrimalItemStructure_PowerGenerator'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 5000,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Gasoline.PrimalItemResource_Gasoline'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 25,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_HeavyTurret.PrimalItemStructure_HeavyTurret'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 2,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_StorageBox_Huge.PrimalItemStructure_StorageBox_Huge'"
+        },
+        {
+          "ForceBlueprint": false,
+          "Amount": 4,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Structures/Misc/PrimalItemStructure_IceBox.PrimalItemStructure_IceBox'"
+        }
+      ],
+      "Dinos": [
+        {
+          "Level": 250,
+          "Neutered": true,
+          "Gender": "random",
+          "Blueprint": "Blueprint'/Game/PrimalEarth/Dinos/Rex/Rex_Character_BP.Rex_Character_BP'",
+          "SaddleBlueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Armor/Saddles/PrimalItemArmor_RexSaddle.PrimalItemArmor_RexSaddle'"
+        }
+      ]
+    }
+  },
+  "ShopItems": {
+    "R01": {
+      "Type": "item",
+      "Description": "Black Pearls (300x)",
+      "Price": 500,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 300,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_BlackPearl.PrimalItemResource_BlackPearl'"
+        }
+      ]
+    },
+    "R02": {
+      "Type": "item",
+      "Description": "Silica Pearls (300x)",
+      "Price": 250,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 300,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Silicon.PrimalItemResource_Silicon'"
+        }
+      ]
+    },
+    "R03": {
+      "Type": "item",
+      "Description": "Oil (100x)",
+      "Price": 150,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 500,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Oil.PrimalItemResource_Oil'"
+        }
+      ]
+    },
+    "R04": {
+      "Type": "item",
+      "Description": "Crystal (100x)",
+      "Price": 100,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 150,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Crystal.PrimalItemResource_Crystal'"
+        }
+      ]
+    },
+    "R05": {
+      "Type": "item",
+      "Description": "Metal (500x)",
+      "Price": 300,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 500,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Metal.PrimalItemResource_Metal'"
+        }
+      ]
+    },
+    "R06": {
+      "Type": "item",
+      "Description": "Obsidian (1000x)",
+      "Price": 500,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 1000,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Resources/PrimalItemResource_Obsidian.PrimalItemResource_Obsidian'"
+        }
+      ]
+    },
+    "C01": {
+      "Type": "item",
+      "Description": "Mindwipe Tonic (1x)",
+      "Price": 250,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 1,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/BaseBPs/PrimalItemConsumableRespecSoup.PrimalItemConsumableRespecSoup'"
+        }
+      ]
+    },
+    "C02": {
+      "Type": "item",
+      "Description": "Basic Kibble (100x)",
+      "Price": 50,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 100,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Kibble_Base_XSmall.PrimalItemConsumable_Kibble_Base_XSmall'"
+        }
+      ]
+    },
+    "C03": {
+      "Type": "item",
+      "Description": "Simple Kibble (15x)",
+      "Price": 75,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 15,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Kibble_Base_Small.PrimalItemConsumable_Kibble_Base_Small'"
+        }
+      ]
+    },
+    "C04": {
+      "Type": "item",
+      "Description": "Regular Kibble (15x)",
+      "Price": 100,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 15,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Kibble_Base_Medium.PrimalItemConsumable_Kibble_Base_Medium'"
+        }
+      ]
+    },
+    "C05": {
+      "Type": "item",
+      "Description": "Superior Kibble (15x)",
+      "Price": 125,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 15,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Kibble_Base_Large.PrimalItemConsumable_Kibble_Base_Large'"
+        }
+      ]
+    },
+    "C06": {
+      "Type": "item",
+      "Description": "Exceptional Kibble (15x)",
+      "Price": 175,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 15,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Kibble_Base_XLarge.PrimalItemConsumable_Kibble_Base_XLarge'"
+        }
+      ]
+    },
+    "C07": {
+      "Type": "item",
+      "Description": "Extraordinary Kibble (15x)",
+      "Price": 250,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 15,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/PrimalItemConsumable_Kibble_Base_Special.PrimalItemConsumable_Kibble_Base_Special'"
+        }
+      ]
+    },
+    "C08": {
+      "Type": "item",
+      "Description": "Wyvern Milk (15x)",
+      "Price": 250,
+      "Items": [
+        {
+          "Quality": 0,
+          "ForceBlueprint": false,
+          "Amount": 15,
+          "Blueprint": "Blueprint'/Game/PrimalEarth/CoreBlueprints/Items/Consumables/BaseBPs/PrimalItemConsumable_WyvernMilk.PrimalItemConsumable_WyvernMilk'"
+        }
+      ]
+    },
+    "crate25": {
+      "Type": "beacon",
+      "Description": "SupplyCrate Lvl 25",
+      "Price": 1000,
+      "ClassName": "SupplyCrate_Level25_Double_C"
+    }
+  },
+  "Messages": {
+    "Sender": "ArkShop",
+    "BoughtItem": "<RichColor Color=\"0, 1, 0, 1\">You have successfully bought item</>",
+    "BoughtDino": "<RichColor Color=\"0, 1, 0, 1\">You have successfully bought dino</>",
+    "BoughtBeacon": "<RichColor Color=\"0, 1, 0, 1\">You have successfully bought beacon</>",
+    "BoughtExp": "<RichColor Color=\"0, 1, 0, 1\">You have successfully bought experience</>",
+    "ReceivedPoints": "<RichColor Color=\"1, 1, 0, 1\">You have received {0} points! (total: {1})</>",
+    "ReceivedNoPoints": "<RichColor Color=\"1, 1, 0, 1\">You have received no points!</>",
+    "HavePoints": "You have {0} points",
+    "NoPoints": "<RichColor Color=\"1, 0, 0, 1\">You don't have enough points</>",
+    "WrongId": "<RichColor Color=\"1, 0, 0, 1\">Wrong id</>",
+    "NoPermissionsKit": "<RichColor Color=\"1, 0, 0, 1\">You don't have permission to use this kit</>",
+    "CantBuyKit": "<RichColor Color=\"1, 0, 0, 1\">You can't buy this kit</>",
+    "BoughtKit": "<RichColor Color=\"0, 1, 0, 1\">You have successfully bought {0} kit</>",
+    "AvailableKits": "Available kits for you:",
+    "NoKits": "No available kits",
+    "KitsLeft": "You have {0} {1} kits left",
+    "NoKitsLeft": "You don't have {0} kits left",
+    "CantGivePoints": "<RichColor Color=\"1, 0, 0, 1\">You can't give points to yourself</>",
+    "RidingDino": "<RichColor Color=\"1, 0, 0, 1\">You can't buy this item while riding a dino</>",
+    "SentPoints": "<RichColor Color=\"0, 1, 0, 1\">You have successfully sent {0} points to {1}</>",
+    "GotPoints": "You have received {0} points from {1}",
+    "NoPlayer": "<RichColor Color=\"1, 0, 0, 1\">Player doesn't exist</>",
+    "FoundMorePlayers": "<RichColor Color=\"1, 0, 0, 1\">Found more than one player with the given name</>",
+    "BuyUsage": "Usage: /buy id amount",
+    "ShopUsage": "Usage: /shop page",
+    "KitUsage": "Usage: /kit KitName",
+    "BuyKitUsage": "Usage: /BuyKit KitName amount",
+    "TradeUsage": "Usage: /trade 'Player Name' amount",
+    "PointsCmd": "/points",
+    "TradeCmd": "/trade",
+    "BuyCmd": "/buy",
+    "ShopCmd": "/shop",
+    "KitCmd": "/kit",
+    "BuyKitCmd": "/buykit",
+    "SellCmd": "/sell",
+    "ShopSellCmd": "/shopsell",
+    "SellUsage": "Usage: /sell id amount",
+    "NotEnoughItems": "<RichColor Color=\"1, 0, 0, 1\">You don't have enough items ({0}/{1})</>",
+    "SoldItems": "<RichColor Color=\"0, 1, 0, 1\">You have successfully sold items</>",
+    "BadLevel": "<RichColor Color=\"1, 0, 0, 1\">Required level: {0} - {1}</>",
+    "KitsListPrice": "Price: {0}",
+    "KitsListFormat": "\"{0}\" - {1}. {2} left. {3}\n",
+    "StoreListDino": "{0}) {1}. Level: {2}. Id: {3}. Price: {4}\n",
+    "StoreListItem": "{0}) {1}. Id: {2}. Price: {3}\n",
+    "StoreListFormat": "{0}",
+    "OnlyOnSpawnKit": "This kit can be used only on spawn",
+    "HelpCmd": "/help",
+    "ShopMessage": "Usage: /buy id amount",
+    "HelpMessage": "This is shop help message",
+    "RefundError": "Points refunded due to an error",
+    "ShopFindCmd": "/shopfind",
+    "ShopFindUsage": "Usage: /shopfind searchterm",
+    "ShopFindNotFound": "No items matched your search",
+    "ShopFindTooManyResults": "Too many results to display refine your search term",
+    "NoPermissionsStore": "<RichColor Color=\"1, 0, 0, 1\">You don't have permission to buy this {0}!</>",
+    "InventoryIsFull": "<RichColor Color=\"1, 0, 0, 1\">Unable to redeem your kit, inventory full!</>"
+  }
+}

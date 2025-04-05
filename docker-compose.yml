@@ -59,6 +59,7 @@ services:
     volumes:
       # Server files
       - ./server/Saved:/steam/steamapps/common/asa-server
+      - ./server/config:/steam/steamapps/common/asa-server/ShooterGame/Saved/Config/WindowsServer
 
       # Logs
       # - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
@@ -69,7 +70,6 @@ services:
 
       # For dev purposes
       - ./server/manager:/manager
-      - ./server/ark-server-config.json:/ark-server-config.json
       - ./server/entrypoint.sh:/entrypoint.sh
     ports:
       - 7777:7777/udp
