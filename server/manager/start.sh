@@ -308,6 +308,18 @@ start_server() {
     # Display the full command for debugging
     print_info "Full command line: wine64 \"${executable_path}\" \"${cmd}\" ${flags}"
 
+    # Ensure the log directory exists
+    if dir_does_not_exist "${ARK_SAVE_DIR}/ShooterGame/Saved/Logs"; then
+        print_info "Creating log directory: ${ARK_SAVE_DIR}/ShooterGame/Saved/Logs"
+        mkdir -p "${ARK_SAVE_DIR}/ShooterGame/Saved/Logs"
+    fi
+
+    # Ensure the log file exists
+    if file_does_not_exist "${LOG_FILE}"; then
+        print_info "Creating log file: ${LOG_FILE}"
+        touch "${LOG_FILE}"
+    fi
+
     # Start the server in the background and create a server start flag
     print_info "Starting server process..."
     create_flag "start"

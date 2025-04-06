@@ -72,6 +72,7 @@ monitor_all_logs() {
 
     # Variable to track current logs being monitored
     local current_files=""
+    local TAIL_PID=""
 
     # Main monitoring loop
     while true; do
@@ -124,9 +125,23 @@ monitor_all_logs() {
             continue
         fi
 
-        tail -f $files_to_tail | while read -r line; do
-            format_log_line "$CURRENT_LOG_TYPE" "$line"
-        done
+        # If files have changed, restart tail
+        if [ "$files_to_tail" != "$current_files" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
+
+            current_files="$files_to_tail"
+            print_info "Monitoring $found_logs log file(s)"
+
+            # Start new tail process in background
+            tail -f $files_to_tail | while read -r line; do
+                format_log_line "$CURRENT_LOG_TYPE" "$line"
+            done &
+            TAIL_PID=$!
+        fi
 
         # Wait before checking for new files
         sleep $CHECK_INTERVAL
@@ -140,26 +155,34 @@ monitor_main_log() {
 
     print_script_header "📝 Monitoring Main Log"
 
-    if file_exists "$LOG_FILE" && is_not_empty "$LOG_FILE"; then
-        print_info "Monitoring main log file: $LOG_FILE"
-        tail -f "$LOG_FILE" | while read -r line; do
-            format_log_line "MAIN" "$line"
-        done
-    else
-        print_error "Main log file not found: $LOG_FILE"
-        print_info "Waiting for log file to appear..."
+    local current_log=""
+    local TAIL_PID=""
 
-        # Wait for log file to appear
-        while file_does_not_exist "$LOG_FILE"; do
-            sleep 5
-            print_info "Still waiting for log file..."
-        done
+    # Continuous monitoring loop
+    while true; do
+        # Only continue if log file exists or has changed
+        if file_exists "$LOG_FILE" && [ "$LOG_FILE" != "$current_log" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
 
-        print_info "Log file found! Starting to monitor."
-        tail -f "$LOG_FILE" | while read -r line; do
-            format_log_line "MAIN" "$line"
-        done
-    fi
+            current_log="$LOG_FILE"
+            print_info "Monitoring main log file: $current_log"
+
+            # Start new tail process in background
+            tail -f "$current_log" | while read -r line; do
+                format_log_line "MAIN" "$line"
+            done &
+            TAIL_PID=$!
+        elif file_does_not_exist "$LOG_FILE"; then
+            print_info "Waiting for log file to appear: $LOG_FILE"
+            current_log=""
+        fi
+
+        sleep $CHECK_INTERVAL
+    done
 }
 
 # Function to monitor the Crash log
@@ -169,26 +192,34 @@ monitor_crash_log() {
 
     print_script_header "💥 Monitoring Crash Log"
 
-    if file_exists "$CRASH_LOG_FILE" && is_not_empty "$CRASH_LOG_FILE"; then
-        print_info "Monitoring crash log file: $CRASH_LOG_FILE"
-        tail -f "$CRASH_LOG_FILE" | while read -r line; do
-            format_log_line "CRASH" "$line"
-        done
-    else
-        print_error "Crash log file not found: $CRASH_LOG_FILE"
-        print_info "Waiting for log file to appear..."
+    local current_log=""
+    local TAIL_PID=""
 
-        # Wait for log file to appear
-        while file_does_not_exist "$CRASH_LOG_FILE"; do
-            sleep 5
-            print_info "Still waiting for log file..."
-        done
+    # Continuous monitoring loop
+    while true; do
+        # Only continue if log file exists or has changed
+        if file_exists "$CRASH_LOG_FILE" && [ "$CRASH_LOG_FILE" != "$current_log" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
 
-        print_info "Log file found! Starting to monitor."
-        tail -f "$CRASH_LOG_FILE" | while read -r line; do
-            format_log_line "CRASH" "$line"
-        done
-    fi
+            current_log="$CRASH_LOG_FILE"
+            print_info "Monitoring crash log file: $current_log"
+
+            # Start new tail process in background
+            tail -f "$current_log" | while read -r line; do
+                format_log_line "CRASH" "$line"
+            done &
+            TAIL_PID=$!
+        elif file_does_not_exist "$CRASH_LOG_FILE"; then
+            print_info "Waiting for crash log file to appear: $CRASH_LOG_FILE"
+            current_log=""
+        fi
+
+        sleep $CHECK_INTERVAL
+    done
 }
 
 # Function to monitor only Wine logs
@@ -198,26 +229,34 @@ monitor_wine_logs() {
 
     print_script_header "🍷 Monitoring Wine Logs"
 
-    if file_exists "$WINE_LOG_FILE" && is_not_empty "$WINE_LOG_FILE"; then
-        print_info "Monitoring Wine log file: $WINE_LOG_FILE"
-        tail -f "$WINE_LOG_FILE" | while read -r line; do
-            format_log_line "WINE" "$line"
-        done
-    else
-        print_error "Wine log file not found: $WINE_LOG_FILE"
-        print_info "Waiting for log file to appear..."
+    local current_log=""
+    local TAIL_PID=""
 
-        # Wait for log file to appear
-        while file_does_not_exist "$WINE_LOG_FILE"; do
-            sleep 5
-            print_info "Still waiting for log file..."
-        done
+    # Continuous monitoring loop
+    while true; do
+        # Only continue if log file exists or has changed
+        if file_exists "$WINE_LOG_FILE" && [ "$WINE_LOG_FILE" != "$current_log" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
 
-        print_info "Log file found! Starting to monitor."
-        tail -f "$WINE_LOG_FILE" | while read -r line; do
-            format_log_line "WINE" "$line"
-        done
-    fi
+            current_log="$WINE_LOG_FILE"
+            print_info "Monitoring wine log file: $current_log"
+
+            # Start new tail process in background
+            tail -f "$current_log" | while read -r line; do
+                format_log_line "WINE" "$line"
+            done &
+            TAIL_PID=$!
+        elif file_does_not_exist "$WINE_LOG_FILE"; then
+            print_info "Waiting for wine log file to appear: $WINE_LOG_FILE"
+            current_log=""
+        fi
+
+        sleep $CHECK_INTERVAL
+    done
 }
 
 # Function to monitor only game logs
@@ -227,21 +266,36 @@ monitor_game_logs() {
 
     print_script_header "🎮 Monitoring Game Logs"
 
-    # Find latest game log in a loop
+    local current_log=""
+    local TAIL_PID=""
+
+    # Continuous monitoring loop
     while true; do
         local latest_game_log=$(ls -t $GAME_LOG_FILE 2>/dev/null | head -n 1)
 
-        if file_exists "$latest_game_log" && is_not_empty "$latest_game_log"; then
-            print_info "Monitoring game log file: $latest_game_log"
-            tail -f "$latest_game_log" | while read -r line; do
+        # Only continue if a new log file exists and has changed
+        if file_exists "$latest_game_log" && [ "$latest_game_log" != "$current_log" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
+
+            current_log="$latest_game_log"
+            print_info "Monitoring game log file: $current_log"
+
+            # Start new tail process in background
+            tail -f "$current_log" | while read -r line; do
                 format_log_line "GAME" "$line"
-            done
-            break
-        else
-            print_error "No game log files found matching pattern: $GAME_LOG_FILE"
-            print_info "Waiting for log files to appear..."
-            sleep 5
+            done &
+            TAIL_PID=$!
+        elif [ -z "$latest_game_log" ]; then
+            # No game logs found
+            print_info "Waiting for game log files to appear matching: $GAME_LOG_FILE"
+            current_log=""
         fi
+
+        sleep $CHECK_INTERVAL
     done
 }
 
@@ -252,21 +306,36 @@ monitor_api_logs() {
 
     print_script_header "🔌 Monitoring API Logs"
 
-    # Find latest API log in a loop
+    local current_log=""
+    local TAIL_PID=""
+
+    # Continuous monitoring loop
     while true; do
         local latest_api_log=$(ls -t $API_LOG_FILE 2>/dev/null | head -n 1)
 
-        if file_exists "$latest_api_log" && is_not_empty "$latest_api_log"; then
-            print_info "Monitoring API log file: $latest_api_log"
-            tail -f "$latest_api_log" | while read -r line; do
+        # Only continue if a new log file exists and has changed
+        if file_exists "$latest_api_log" && [ "$latest_api_log" != "$current_log" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
+
+            current_log="$latest_api_log"
+            print_info "Monitoring API log file: $current_log"
+
+            # Start new tail process in background
+            tail -f "$current_log" | while read -r line; do
                 format_log_line "API" "$line"
-            done
-            break
-        else
-            print_error "No API log files found matching pattern: $API_LOG_FILE"
-            print_info "Waiting for log files to appear..."
-            sleep 5
+            done &
+            TAIL_PID=$!
+        elif [ -z "$latest_api_log" ]; then
+            # No API logs found
+            print_info "Waiting for API log files to appear matching: $API_LOG_FILE"
+            current_log=""
         fi
+
+        sleep $CHECK_INTERVAL
     done
 }
 
@@ -277,24 +346,32 @@ monitor_monitor_log() {
 
     print_script_header "🔍 Monitoring Monitor Log"
 
-    if file_exists "$MONITOR_LOG" && is_not_empty "$MONITOR_LOG"; then
-        print_info "Monitoring monitor log file: $MONITOR_LOG"
-        tail -f "$MONITOR_LOG" | while read -r line; do
-            format_log_line "MONITOR" "$line"
-        done
-    else
-        print_error "Monitor log file not found: $MONITOR_LOG"
-        print_info "Waiting for log file to appear..."
+    local current_log=""
+    local TAIL_PID=""
 
-        # Wait for log file to appear
-        while [ ! -f "$MONITOR_LOG" ]; do
-            sleep 5
-            print_info "Still waiting for log file..."
-        done
+    # Continuous monitoring loop
+    while true; do
+        # Only continue if log file exists or has changed
+        if file_exists "$MONITOR_LOG" && [ "$MONITOR_LOG" != "$current_log" ]; then
+            # Kill previous tail if running
+            if [ -n "$TAIL_PID" ]; then
+                kill $TAIL_PID 2>/dev/null || true
+                wait $TAIL_PID 2>/dev/null || true
+            fi
 
-        print_info "Log file found! Starting to monitor."
-        tail -f "$MONITOR_LOG" | while read -r line; do
-            format_log_line "MONITOR" "$line"
-        done
-    fi
+            current_log="$MONITOR_LOG"
+            print_info "Monitoring monitor log file: $current_log"
+
+            # Start new tail process in background
+            tail -f "$current_log" | while read -r line; do
+                format_log_line "MONITOR" "$line"
+            done &
+            TAIL_PID=$!
+        elif file_does_not_exist "$MONITOR_LOG"; then
+            print_info "Waiting for monitor log file to appear: $MONITOR_LOG"
+            current_log=""
+        fi
+
+        sleep $CHECK_INTERVAL
+    done
 }
