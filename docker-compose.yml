@@ -79,10 +79,10 @@ services:
       - 27020:27020/tcp
     networks:
       - ark
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 12g
+    deploy:
+      resources:
+        limits:
+          memory: 12g
 
   # scorched-earth:
   #   build:

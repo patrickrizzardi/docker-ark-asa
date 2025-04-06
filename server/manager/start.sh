@@ -125,35 +125,74 @@ verify_server_started() {
     return 1
 }
 
-# Function to check logs for startup errors
-check_logs_for_errors() {
-    local log_file="$1"
-    local max_lines=${2:-50}
+# Function to get the most recent log file matching a pattern
+get_most_recent_log() {
+    local log_pattern="$1"
 
-    if [ ! -f "$log_file" ]; then
-        print_warning "⚠️ Log file not found: $log_file"
-        return 1
+    # If pattern doesn't contain wildcards, just return it if it exists
+    if [[ "$log_pattern" != *"*"* ]]; then
+        if [ -f "$log_pattern" ]; then
+            echo "$log_pattern"
+        fi
+        return
     fi
 
-    print_info "Checking logs for errors..."
+    # Find all files matching the pattern
+    local matching_files=($log_pattern)
 
-    # Common error patterns to look for
-    local errors=$(grep -i "error\|failed\|crash\|exception\|fatal\|cannot\|unable\|denied\|terminated\|segmentation fault" "$log_file" | tail -n $max_lines)
+    # Check if any files were found
+    if [ ${#matching_files[@]} -eq 0 ] || [ "${matching_files[0]}" = "$log_pattern" ]; then
+        return
+    fi
+
+    # Find the most recent file
+    local most_recent=""
+    local latest_time=0
+
+    for file in "${matching_files[@]}"; do
+        if [ -f "$file" ]; then
+            local file_time=$(stat -c %Y "$file")
+            if [ "$file_time" -gt "$latest_time" ]; then
+                latest_time=$file_time
+                most_recent=$file
+            fi
+        fi
+    done
+
+    echo "$most_recent"
+}
+
+# Function to check logs for startup errors
+check_logs_for_errors() {
+    local log_pattern="$1"
+
+    # Get the most recent log file matching the pattern
+    local recent_log=$(get_most_recent_log "$log_pattern")
+
+    if [ -z "$recent_log" ]; then
+        print_warning "⚠️ No log files found matching pattern: $log_pattern"
+        return 0 # Return success as this isn't critical
+    fi
+
+    print_info "Checking entire log file: $recent_log"
+
+    # Common error patterns to look for - scan entire file (no tail limit)
+    local errors=$(grep -i "error\|failed\|crash\|exception\|fatal\|cannot\|unable\|denied\|terminated\|segmentation fault" "$recent_log")
 
     if [ -n "$errors" ]; then
         print_warning "⚠️ Potential issues detected in log:"
-        echo "$errors" | head -10
+        echo "$errors" | head -20 # Show more lines since we're checking the entire file
 
         # Look for specific known issues
-        if grep -i "steam_api64.dll" "$log_file" >/dev/null; then
+        if grep -i "steam_api64.dll" "$recent_log" >/dev/null; then
             print_warning "⚠️ Steam API issue detected - may indicate Steam initialization failure"
         fi
 
-        if grep -i "battleye" "$log_file" >/dev/null; then
+        if grep -i "battleye" "$recent_log" >/dev/null; then
             print_warning "⚠️ BattlEye issue detected - consider using -NoBattlEye option"
         fi
 
-        if grep -i "permission denied" "$log_file" >/dev/null; then
+        if grep -i "permission denied" "$recent_log" >/dev/null; then
             print_warning "⚠️ Permission issues detected - check file permissions"
         fi
 
@@ -224,6 +263,12 @@ prepare_environment() {
 start_server() {
     local server_type="$1"
     local executable=""
+
+    # Define log file paths
+    LOG_FILE="${WINE_LOG_FILE:-${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/wine.log}"
+    GAME_LOG_FILE="${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/ServerGame.*.log"
+    API_LOG_FILE="${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/logs/ArkApi_*.log"
+    CRASH_LOG_FILE="${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/Crash*.log"
 
     # Determine which executable to use based on server type
     if [ "$server_type" = "api" ]; then
@@ -340,10 +385,26 @@ start_server() {
     fi
 
     # Check logs for any errors
-    check_logs_for_errors "${LOG_FILE}" 100
-    check_logs_for_errors "${GAME_LOG_FILE}" 100
-    check_logs_for_errors "${API_LOG_FILE}" 100
-    check_logs_for_errors "${CRASH_LOG_FILE}" 100
+    print_info "Analyzing server logs for startup issues..."
+
+    # Check the main Wine log that should always exist
+    print_info "Checking main wine log..."
+    check_logs_for_errors "${LOG_FILE}"
+
+    # Check game logs (may not exist on first start)
+    print_info "Checking most recent game log..."
+    check_logs_for_errors "${GAME_LOG_FILE}"
+
+    # Only check API logs if running API server
+    if [ "$server_type" = "api" ]; then
+        print_info "Checking most recent API log..."
+        check_logs_for_errors "${API_LOG_FILE}"
+    fi
+
+    # Check for crash logs
+    print_info "Checking for recent crash logs..."
+    check_logs_for_errors "${CRASH_LOG_FILE}"
+
     # Note: We continue even if errors are found, as they might be non-fatal
 
     # Verify server has actually started and is responsive
@@ -378,7 +439,7 @@ wait_for_initialization() {
             echo "" # Add a newline after the spinner
             print_error "❌ Server process terminated during initialization"
             print_info "Checking logs for errors..."
-            check_logs_for_errors "${WINE_LOG_FILE}" 100
+            check_logs_for_errors "${WINE_LOG_FILE}"
             return 1
         fi
     done

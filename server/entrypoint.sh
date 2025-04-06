@@ -26,6 +26,9 @@ fi
 echo "🍷 Testing Wine..."
 wine64 --version || echo "Wine version check failed (continuing anyway)"
 
+# Start wine server presiistant
+wineserver --persistent
+
 # Run a command if provided
 if [ "$1" ]; then
   echo "🚀 Running command: $@"
