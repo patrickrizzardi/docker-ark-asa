@@ -53,6 +53,9 @@ format_log_line() {
     "MONITOR")
         echo -e "${CYAN}[$timestamp] [MONITOR]${NC} $line"
         ;;
+    "CRASH")
+        echo -e "${RED}[$timestamp] [CRASH]${NC} $line"
+        ;;
     *)
         echo -e "${NC}[$timestamp] [UNKNOWN]${NC} $line"
         ;;
@@ -136,9 +139,32 @@ monitor_all_logs() {
             current_files="$files_to_tail"
             print_info "Monitoring $found_logs log file(s)"
 
-            # Start new tail process in background
-            tail -f $files_to_tail | while read -r line; do
-                format_log_line "$CURRENT_LOG_TYPE" "$line"
+            # Start new tail process in background with filename prefixes
+            tail -F $files_to_tail | while read -r line; do
+                # Determine log type based on filename in the line
+                log_type="UNKNOWN"
+
+                # Check which log file this line is from
+                if [[ "$line" == *"$LOG_FILE"* ]]; then
+                    log_type="MAIN"
+                elif [[ "$line" == *"ServerGame"* ]]; then
+                    log_type="GAME"
+                elif [[ "$line" == *"ArkApi"* ]]; then
+                    log_type="API"
+                elif [[ "$line" == *"wine.log"* ]]; then
+                    log_type="WINE"
+                elif [[ "$line" == *"server_monitor.log"* ]]; then
+                    log_type="MONITOR"
+                elif [[ "$line" == *"Crash"* ]]; then
+                    log_type="CRASH"
+                fi
+
+                # Remove the filename prefix that tail adds
+                if [[ "$line" == *":"* ]]; then
+                    line=$(echo "$line" | sed 's/^[^:]*://')
+                fi
+
+                format_log_line "$log_type" "$line"
             done &
             TAIL_PID=$!
         fi
@@ -172,7 +198,7 @@ monitor_main_log() {
             print_info "Monitoring main log file: $current_log"
 
             # Start new tail process in background
-            tail -f "$current_log" | while read -r line; do
+            tail -F "$current_log" | while read -r line; do
                 format_log_line "MAIN" "$line"
             done &
             TAIL_PID=$!
@@ -209,7 +235,7 @@ monitor_crash_log() {
             print_info "Monitoring crash log file: $current_log"
 
             # Start new tail process in background
-            tail -f "$current_log" | while read -r line; do
+            tail -F "$current_log" | while read -r line; do
                 format_log_line "CRASH" "$line"
             done &
             TAIL_PID=$!
@@ -246,7 +272,7 @@ monitor_wine_logs() {
             print_info "Monitoring wine log file: $current_log"
 
             # Start new tail process in background
-            tail -f "$current_log" | while read -r line; do
+            tail -F "$current_log" | while read -r line; do
                 format_log_line "WINE" "$line"
             done &
             TAIL_PID=$!
@@ -285,7 +311,7 @@ monitor_game_logs() {
             print_info "Monitoring game log file: $current_log"
 
             # Start new tail process in background
-            tail -f "$current_log" | while read -r line; do
+            tail -F "$current_log" | while read -r line; do
                 format_log_line "GAME" "$line"
             done &
             TAIL_PID=$!
@@ -325,7 +351,7 @@ monitor_api_logs() {
             print_info "Monitoring API log file: $current_log"
 
             # Start new tail process in background
-            tail -f "$current_log" | while read -r line; do
+            tail -F "$current_log" | while read -r line; do
                 format_log_line "API" "$line"
             done &
             TAIL_PID=$!
@@ -363,7 +389,7 @@ monitor_monitor_log() {
             print_info "Monitoring monitor log file: $current_log"
 
             # Start new tail process in background
-            tail -f "$current_log" | while read -r line; do
+            tail -F "$current_log" | while read -r line; do
                 format_log_line "MONITOR" "$line"
             done &
             TAIL_PID=$!
