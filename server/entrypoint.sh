@@ -26,7 +26,10 @@ fi
 echo "🍷 Testing Wine..."
 wine64 --version || echo "Wine version check failed (continuing anyway)"
 
-# Start wine server presiistant
+# Start wine server presistant
+# This should keep the wine server running making it faster to start the game
+# after the initial startupca
+echo "🍷 Starting wine server..."
 wineserver --persistent
 
 # Run a command if provided

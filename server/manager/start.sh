@@ -439,7 +439,7 @@ wait_for_initialization() {
             echo "" # Add a newline after the spinner
             print_error "❌ Server process terminated during initialization"
             print_info "Checking logs for errors..."
-            check_logs_for_errors "${WINE_LOG_FILE}"
+            check_logs_for_errors "${LOG_FILE}"
             return 1
         fi
     done
