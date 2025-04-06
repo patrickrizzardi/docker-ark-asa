@@ -14,16 +14,14 @@ ENV PATH="${USER_SCRIPTS}:${PATH}"
 ENV ASA_APPID 2430930
 ENV SERVER_SHUTDOWN_TIMEOUT 30
 ENV STEAM_DIR /steam
-ENV ARK_SERVER_DIR /asa-server
 ENV ARK_SAVE_DIR /ark
-# ENV ARK_SAVE_DIR ${STEAM_DIR}/steamapps/common/asa-server
 ENV MANAGER_DIR /manager
 ENV BACKUP_PATH /backups
 ENV MAX_BACKUPS 10
 
 # Wine configuration
-ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_SERVER_DIR}
-ENV STEAM_COMPAT_DATA_PATH ${ARK_SERVER_DIR}/steamapps/compatdata/${ASA_APPID}
+ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_SAVE_DIR}
+ENV STEAM_COMPAT_DATA_PATH ${ARK_SAVE_DIR}/steamapps/compatdata/${ASA_APPID}
 ENV WINEDEBUG -all
 ENV WINEARCH win64
 ENV WINEPREFIX ${STEAM_COMPAT_DATA_PATH}/pfx
@@ -76,13 +74,13 @@ RUN set -ex \
     && groupadd --gid ${GID} ${USER} \
     && useradd --create-home --shell /bin/bash --uid ${UID} --gid ${GID} ${USER} \
     # Create required directories
-    && mkdir -p ${USER_SCRIPTS} ${ARK_SAVE_DIR} ${MANAGER_DIR} ${STEAM_DIR} ${ARK_SERVER_DIR} \
+    && mkdir -p ${USER_SCRIPTS} ${ARK_SAVE_DIR} ${MANAGER_DIR} ${STEAM_DIR} \
     ${STEAM_COMPAT_DATA_PATH} ${BACKUP_PATH} ${WINEPREFIX} /tmp/.X11-unix \
     # Set permissions
     && chmod 1777 /tmp /tmp/.X11-unix \
     && touch /etc/fstab \
     && chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} \
-    ${BACKUP_PATH} ${WINEPREFIX} ${ARK_SAVE_DIR} ${ARK_SERVER_DIR}
+    ${BACKUP_PATH} ${WINEPREFIX} ${ARK_SAVE_DIR}
 
 # Switch to non-root user for remaining operations
 USER ${USER}
@@ -113,5 +111,5 @@ COPY --chown=${USER} --chmod=755 ./entrypoint.sh /entrypoint.sh
 RUN ln -sf ${MANAGER_DIR}/ark-cli.sh ${USER_SCRIPTS}/ark \
     && chmod +x ${USER_SCRIPTS}/ark
 
-WORKDIR ${MANAGER_DIR}
+WORKDIR ${ARK_SAVE_DIR}
 ENTRYPOINT ["/entrypoint.sh"]

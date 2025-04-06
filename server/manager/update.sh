@@ -86,7 +86,7 @@ get_current_build_id() {
 
 # Function to get the installed build ID from the app manifest
 get_installed_build_id() {
-    local acf_file="${ARK_SERVER_DIR}/steamapps/appmanifest_${ASA_APPID}.acf"
+    local acf_file="${ARK_SAVE_DIR}/steamapps/appmanifest_${ASA_APPID}.acf"
 
     if ! file_exists "$acf_file"; then
         print_warning "⚠️ App manifest not found: $acf_file"
@@ -180,7 +180,7 @@ update_server() {
 
     # Run SteamCMD update command with loading animation
     print_info "Starting ARK server update..."
-    local update_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_SERVER_DIR} +login anonymous +app_update ${ASA_APPID} ${validation_flag} +quit"
+    local update_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_SAVE_DIR} +login anonymous +app_update ${ASA_APPID} ${validation_flag} +quit"
 
     # Run the command with loading animation
     eval "$update_cmd" >"$steam_output_file" 2>&1 &
@@ -217,7 +217,7 @@ update_server() {
             print_info "Running file validation to ensure server integrity..."
 
             # Run validation command
-            local validate_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_SERVER_DIR} +login anonymous +app_update ${ASA_APPID} validate +quit"
+            local validate_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_SAVE_DIR} +login anonymous +app_update ${ASA_APPID} validate +quit"
 
             # Run the command with loading animation
             eval "$validate_cmd" >"$steam_output_file" 2>&1 &

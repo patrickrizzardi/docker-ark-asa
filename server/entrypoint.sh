@@ -36,5 +36,4 @@ fi
 
 # Execute the init.sh script directly from its location
 echo "🚀 Initializing ARK server..."
-cd "${MANAGER_DIR}"
-exec ./init.sh "$@"
+exec "${MANAGER_DIR}/init.sh" "$@"

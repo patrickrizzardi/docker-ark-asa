@@ -209,7 +209,7 @@ prepare_environment() {
     fi
 
     # Ensure executable directory exists
-    local executable_dir="${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64"
+    local executable_dir="${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64"
     if [ ! -d "$executable_dir" ]; then
         print_error "❌ Server executables directory does not exist: $executable_dir"
         print_info "Please make sure the server is properly installed"
@@ -234,7 +234,7 @@ start_server() {
         print_script_header "🚀 Starting ARK Game Server"
     fi
 
-    local executable_path="${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/${executable}"
+    local executable_path="${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/${executable}"
 
     # Check if the executable exists
     if [ ! -f "$executable_path" ]; then
@@ -244,7 +244,7 @@ start_server() {
     fi
 
     # Build the command string with server parameters
-    local cmd="${SERVER_MAP}?listen?SessionName=${SERVER_SESSION_NAME}?Port=${NETWORK_SERVER_PORT}?AltSaveDirectoryName=${ARK_SAVE_DIR}"
+    local cmd="${SERVER_MAP}?listen?SessionName=${SERVER_SESSION_NAME}?Port=${NETWORK_SERVER_PORT}"
 
     # Add optional parameters if they are set
     if [ -n "${GAMEPLAY_MAX_PLAYERS}" ]; then
@@ -298,7 +298,7 @@ start_server() {
 
     # Add cluster ID if specified
     if [ -n "${SERVER_CLUSTER_ID}" ]; then
-        flags="${flags} -clusterid=${SERVER_CLUSTER_ID} -ClusterDirOverride=${ARK_SAVE_DIR}"
+        flags="${flags} -clusterid=${SERVER_CLUSTER_ID}"
         print_info "Using cluster ID: ${SERVER_CLUSTER_ID}"
     fi
 
