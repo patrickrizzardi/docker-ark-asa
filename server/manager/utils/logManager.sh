@@ -144,24 +144,42 @@ monitor_all_logs() {
                 # Determine log type based on filename in the line
                 log_type="UNKNOWN"
 
-                # Check which log file this line is from
-                if [[ "$line" == *"$LOG_FILE"* ]]; then
-                    log_type="MAIN"
-                elif [[ "$line" == *"ServerGame"* ]]; then
-                    log_type="GAME"
-                elif [[ "$line" == *"ArkApi"* ]]; then
-                    log_type="API"
-                elif [[ "$line" == *"wine.log"* ]]; then
-                    log_type="WINE"
-                elif [[ "$line" == *"server_monitor.log"* ]]; then
-                    log_type="MONITOR"
-                elif [[ "$line" == *"Crash"* ]]; then
-                    log_type="CRASH"
+                # Check if this is a file header line from tail
+                if [[ "$line" == "==> "* && "$line" == *" <==" ]]; then
+                    # Store the current file for future lines
+                    current_file="${line#==> }"
+                    current_file="${current_file% <==}"
+
+                    # Print the header with proper formatting
+                    if [[ "$current_file" == *"ShooterGame.log" ]]; then
+                        echo -e "${BLUE}[$(date +%H:%M:%S)] [MAIN]${NC} Monitoring: $current_file"
+                    elif [[ "$current_file" == *"ServerGame"* ]]; then
+                        echo -e "${GREEN}[$(date +%H:%M:%S)] [GAME]${NC} Monitoring: $current_file"
+                    elif [[ "$current_file" == *"ArkApi"* ]]; then
+                        echo -e "${MAGENTA}[$(date +%H:%M:%S)] [API]${NC} Monitoring: $current_file"
+                    elif [[ "$current_file" == *"wine.log" ]]; then
+                        echo -e "${YELLOW}[$(date +%H:%M:%S)] [WINE]${NC} Monitoring: $current_file"
+                    elif [[ "$current_file" == *"server_monitor.log" ]]; then
+                        echo -e "${CYAN}[$(date +%H:%M:%S)] [MONITOR]${NC} Monitoring: $current_file"
+                    elif [[ "$current_file" == *"Crash"* ]]; then
+                        echo -e "${RED}[$(date +%H:%M:%S)] [CRASH]${NC} Monitoring: $current_file"
+                    fi
+                    continue
                 fi
 
-                # Remove the filename prefix that tail adds
-                if [[ "$line" == *":"* ]]; then
-                    line=$(echo "$line" | sed 's/^[^:]*://')
+                # Determine log type based on the current file we're reading from
+                if [[ "$current_file" == *"ShooterGame.log" ]]; then
+                    log_type="MAIN"
+                elif [[ "$current_file" == *"ServerGame"* ]]; then
+                    log_type="GAME"
+                elif [[ "$current_file" == *"ArkApi"* ]]; then
+                    log_type="API"
+                elif [[ "$current_file" == *"wine.log" ]]; then
+                    log_type="WINE"
+                elif [[ "$current_file" == *"server_monitor.log" ]]; then
+                    log_type="MONITOR"
+                elif [[ "$current_file" == *"Crash"* ]]; then
+                    log_type="CRASH"
                 fi
 
                 format_log_line "$log_type" "$line"
