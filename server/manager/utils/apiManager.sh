@@ -2,9 +2,10 @@
 # Load utilities
 source "${MANAGER_DIR}/utils/colorPrinter.sh"
 source "${MANAGER_DIR}/utils/fileManager.sh"
+source "${MANAGER_DIR}/utils/zipExtractor.sh"
 
 # Set defaults
-ARK_DIR=${ARK_DIR:-"/steam/steamapps/common/asa-server"}
+API_ENABLED=${API_ENABLED:-"false"}
 ARK_SERVER_API_LATEST_RELEASE=${ARK_SERVER_API_LATEST_RELEASE:-"1.17"}
 CDN_URL=${CDN_URL:-"https://cdn.redact.digital/ark"}
 
@@ -35,13 +36,13 @@ install_server_api() {
     fi
 
     # Create directories
-    mkdir -p "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions"
+    mkdir -p "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions"
 
     # Move files
     move_api_files "$tmp_dir"
 
     # Update version record
-    echo "$latest_release" >"${ARK_DIR}/ShooterGame/Binaries/last_server_api_release.txt"
+    echo "$latest_release" >"${ARK_SAVE_DIR}/last_server_api_release.txt"
 
     print_success "API installation completed"
     return 0
@@ -55,15 +56,15 @@ move_api_files() {
 
     # Define source and destination pairs
     local -a moves=(
-        "${tmp_dir}/AsaApiLoader.exe" "${ARK_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe"
-        "${tmp_dir}/AsaApiLoader.pdb" "${ARK_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.pdb"
-        "${tmp_dir}/msdia140.dll" "${ARK_DIR}/ShooterGame/Binaries/Win64/msdia140.dll"
-        "${tmp_dir}/ArkApi/pdbignores.txt" "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/pdbignores.txt"
-        "${tmp_dir}/ArkApi/Plugins/Permissions/Permissions.dll" "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions/Permissions.dll"
-        "${tmp_dir}/ArkApi/Plugins/Permissions/Permissions.pdb" "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions/Permissions.pdb"
-        "${tmp_dir}/ArkApi/AsaApi.dll" "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/AsaApi.dll"
-        "${tmp_dir}/ArkApi/AsaApi.pdb" "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/AsaApi.pdb"
-        "${tmp_dir}/ArkApi/Plugins/Permissions/PluginInfo.json" "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions/PluginInfo.json"
+        "${tmp_dir}/AsaApiLoader.exe" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe"
+        "${tmp_dir}/AsaApiLoader.pdb" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.pdb"
+        "${tmp_dir}/msdia140.dll" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/msdia140.dll"
+        "${tmp_dir}/ArkApi/pdbignores.txt" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/pdbignores.txt"
+        "${tmp_dir}/ArkApi/Plugins/Permissions/Permissions.dll" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions/Permissions.dll"
+        "${tmp_dir}/ArkApi/Plugins/Permissions/Permissions.pdb" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions/Permissions.pdb"
+        "${tmp_dir}/ArkApi/AsaApi.dll" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/AsaApi.dll"
+        "${tmp_dir}/ArkApi/AsaApi.pdb" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/AsaApi.pdb"
+        "${tmp_dir}/ArkApi/Plugins/Permissions/PluginInfo.json" "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins/Permissions/PluginInfo.json"
     )
 
     # Process each file pair
@@ -88,9 +89,9 @@ move_api_files() {
 check_and_update_server_api() {
     print_info "Checking server API status..."
 
-    if [ -f "${ARK_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe" ]; then
+    if [ -f "${ARK_SERVER_DIR}/ShooterGame/Binaries/Win64/AsaApiLoader.exe" ]; then
         local last_release=""
-        local api_release_path="${ARK_DIR}/ShooterGame/Binaries/last_server_api_release.txt"
+        local api_release_path="${ARK_SAVE_DIR}/last_server_api_release.txt"
 
         if [ -f "$api_release_path" ]; then
             last_release=$(cat "$api_release_path")

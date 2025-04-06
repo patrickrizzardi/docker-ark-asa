@@ -3,6 +3,7 @@
 
 # Source color definitions from colorPrinter.sh if MANAGER_DIR is set
 source "$MANAGER_DIR/utils/colorPrinter.sh"
+source "$MANAGER_DIR/utils/baseUtils.sh"
 
 # Define log-specific colors using the sourced colors or our fallbacks
 COLOR_MAIN=$BLUE     # Blue

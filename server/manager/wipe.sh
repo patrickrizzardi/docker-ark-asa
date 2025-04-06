@@ -19,7 +19,7 @@ source "${MANAGER_DIR}/utils/common.sh"
 
 # Required environment variables
 declare -a REQUIRED_VARS=(
-    "ARK_DIR" # ARK installation directory
+    "ARK_SAVE_DIR" # ARK installation directory
 )
 
 # =============================================================================
@@ -146,7 +146,7 @@ wipe_save_data() {
     print_info "Wiping ARK save data..."
 
     # Define paths to wipe
-    local saved_dir="${ARK_DIR}/ShooterGame/Saved"
+    local saved_dir="${ARK_SAVE_DIR}/ShooterGame/Saved"
     local save_paths=(
         "${saved_dir}/SavedArks"
         "${saved_dir}/clusters"

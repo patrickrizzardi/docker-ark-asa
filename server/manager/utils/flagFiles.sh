@@ -5,7 +5,7 @@ source "$MANAGER_DIR/utils/colorPrinter.sh"
 # Function to check if the server is running
 flag_exists() {
     local flag="$1"
-    local flag_file="${ARK_DIR}/${flag}.flag"
+    local flag_file="${ARK_SAVE_DIR}/${flag}.flag"
     local stale_minutes=${2:-30} # Default to 30 minutes for stale detection
 
     _verify_flag_names "$flag" || exit 1
@@ -25,7 +25,7 @@ flag_exists() {
 # A function to create the flag file
 create_flag() {
     local flag="$1"
-    local flag_file="${ARK_DIR}/${flag}.flag"
+    local flag_file="${ARK_SAVE_DIR}/${flag}.flag"
 
     _verify_flag_names "$flag" || exit 1
 
@@ -36,7 +36,7 @@ create_flag() {
 # A function to remove the flag file
 remove_flag() {
     local flag="$1"
-    local flag_file="${ARK_DIR}/${flag}.flag"
+    local flag_file="${ARK_SAVE_DIR}/${flag}.flag"
 
     _verify_flag_names "$flag" || exit 1
 
@@ -46,7 +46,7 @@ remove_flag() {
 # A function to get the age of a flag file in minutes
 get_flag_age() {
     local flag="$1"
-    local flag_file="${ARK_DIR}/${flag}.flag"
+    local flag_file="${ARK_SAVE_DIR}/${flag}.flag"
 
     _verify_flag_names "$flag" || exit 1
 

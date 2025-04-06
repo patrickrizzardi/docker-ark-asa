@@ -14,7 +14,7 @@ source "$MANAGER_DIR/utils/common.sh"
 
 # Required environment variables for monitoring
 declare -a MONITOR_REQUIRED_VARS=(
-    "ARK_DIR"     # ARK installation directory
+    "ARK_SAVE_DIR"     # ARK installation directory
     "MANAGER_DIR" # Manager scripts directory
 )
 
@@ -47,8 +47,8 @@ set_monitor_defaults() {
     SYSTEM_STARTUP_WAIT=${SYSTEM_STARTUP_WAIT:-60}                    # Time to wait for server to initialize (seconds)
 
     # Set default log file paths if not specified
-    LOG_FILE=${LOG_FILE:-"${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log"}
-    MONITOR_LOG=${MONITOR_LOG:-"${ARK_DIR}/logs/server_monitor.log"}
+    LOG_FILE=${LOG_FILE:-"${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/ShooterGame.log"}
+    MONITOR_LOG=${MONITOR_LOG:-"${ARK_SAVE_DIR}/logs/server_monitor.log"}
 
 }
 
@@ -64,7 +64,7 @@ cleanup() {
 
 # Check for restart timeout (nuclear option)
 check_restart_timeout() {
-    local restart_timestamp_file="${ARK_DIR}/restart_timestamp.tmp"
+    local restart_timestamp_file="${ARK_SAVE_DIR}/restart_timestamp.tmp"
 
     # If restart flag doesn't exist, remove timestamp file and return
     if ! flag_exists "restart" && file_exists "$restart_timestamp_file"; then
@@ -210,7 +210,7 @@ is_update_check_due() {
     fi
 
     # Create the file to store last check time if it doesn't exist
-    local last_check_file="${ARK_DIR}/last_update_check.txt"
+    local last_check_file="${ARK_SAVE_DIR}/last_update_check.txt"
     if ! file_exists "$last_check_file"; then
         echo "0" >"$last_check_file"
     fi
@@ -246,7 +246,7 @@ check_for_updates() {
     print_info "Checking for ARK server updates..."
 
     # Update the last check time
-    echo "$(date +%s)" >"${ARK_DIR}/last_update_check.txt"
+    echo "$(date +%s)" >"${ARK_SAVE_DIR}/last_update_check.txt"
 
     # Call the update script with check-only mode
     update_check_result=$(capture_all_output ark update --check-only)
@@ -425,7 +425,7 @@ monitor_loop() {
             print_warning "⚠️ Detected first-launch errors, initiating recovery..."
 
             # Only attempt recovery if we haven't already tried
-            if file_does_not_exist "${ARK_DIR}/first_launch_recovery_completed"; then
+            if file_does_not_exist "${ARK_SAVE_DIR}/first_launch_recovery_completed"; then
                 handle_first_launch_recovery
             else
                 print_info "Recovery already attempted once, will not retry automatically"

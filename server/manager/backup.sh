@@ -14,7 +14,7 @@ source "${UTILS_PATH}/common.sh"
 
 # Required environment variables for backup
 declare -a REQUIRED_VARS=(
-    "ARK_DIR"     # ARK installation directory
+    "ARK_SAVE_DIR"     # ARK installation directory
     "BACKUP_PATH" # Path to store backups
     "MANAGER_DIR" # Manager scripts directory
 )
@@ -33,7 +33,7 @@ set_default_values() {
     BACKUP_COMPRESSION_LEVEL=${BACKUP_COMPRESSION_LEVEL:-5}
     BACKUP_NAME_PREFIX=${BACKUP_NAME_PREFIX:-"ark-backup"}
     BACKUP_MAX_BACKUPS=${BACKUP_MAX_BACKUPS:-10}
-    BACKUP_FLAG_FILE="${ARK_DIR}/backup_in_progress.flag"
+    BACKUP_FLAG_FILE="${ARK_SAVE_DIR}/backup_in_progress.flag"
 
     # Ensure MAX_BACKUPS is at least 1
     if [ "$BACKUP_MAX_BACKUPS" -lt 1 ]; then
@@ -127,7 +127,7 @@ create_backup() {
 
     # Determine which directories to include
     print_info "Preparing backup content..."
-    local saved_dir="$ARK_DIR/ShooterGame/Saved"
+    local saved_dir="$ARK_SAVE_DIR/ShooterGame/Saved"
     local backup_dirs=("SavedArks" "Config" "clusters")
 
     # Set compression level via GZIP environment variable
@@ -149,7 +149,7 @@ create_backup() {
     local tar_log="/tmp/tar_backup_$$.log"
 
     # Start tar in background with progress spinner
-    (tar -czf "$archive_path" -C "$ARK_DIR/ShooterGame" "${dir_args[@]}" 2>"$tar_log") &
+    (tar -czf "$archive_path" -C "$ARK_SAVE_DIR/ShooterGame" "${dir_args[@]}" 2>"$tar_log") &
     local tar_pid=$!
 
     # Show progress spinner

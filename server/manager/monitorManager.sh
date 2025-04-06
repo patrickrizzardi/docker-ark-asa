@@ -24,15 +24,15 @@ source "${MANAGER_DIR}/utils/common.sh"
 # Required environment variables
 declare -a MONITOR_REQUIRED_VARS=(
     "MANAGER_DIR" # Manager scripts directory
-    "ARK_DIR"     # ARK installation directory
+    "ARK_SAVE_DIR"     # ARK installation directory
 )
 
 # Default log file location if not specified in environment
-DEFAULT_MONITOR_LOG="${ARK_DIR}/logs/server_monitor.log"
+DEFAULT_MONITOR_LOG="${ARK_SAVE_DIR}/logs/server_monitor.log"
 
 # Script paths
 MONITOR_SCRIPT="${MANAGER_DIR}/monitor.sh"
-MONITOR_PID_FILE="${ARK_DIR}/monitor.pid"
+MONITOR_PID_FILE="${ARK_SAVE_DIR}/monitor.pid"
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -72,7 +72,7 @@ check_log_status() {
 
         # Try to locate it using find
         echo "Searching for monitor log file..."
-        local found_logs=$(find "${ARK_DIR}" -name "server_monitor.log" -type f 2>/dev/null)
+        local found_logs=$(find "${ARK_SAVE_DIR}" -name "server_monitor.log" -type f 2>/dev/null)
         if is_not_empty "$found_logs"; then
             echo "Found possible logs:"
             echo "$found_logs"

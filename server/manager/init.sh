@@ -25,12 +25,10 @@ process_command_line_args() {
 }
 
 setup_shutdown_handlers() {
-    print_info "Setting up shutdown handlers..."
-
     # Function to handle shutdown signals
     shutdown_handler() {
         print_info "Received shutdown signal. Stopping server..."
-        "${MANAGER_DIR}/stop.sh"
+        ark stop
         exit 0
     }
 
@@ -56,27 +54,28 @@ main() {
 
     # Update ARK Server
     print_info "Checking for ARK server updates..."
-    "${MANAGER_DIR}/update.sh"
+    ark update
 
     # Check and update server API
-    print_info "Checking server API status..."
-    check_and_update_server_api
+    if equals "$API_ENABLED" "true"; then
+        print_info "Checking server API status..."
+        check_and_update_server_api
 
-    # Install or update plugins
-    print_info "Checking plugins..."
-    install_plugins "$ARK_DIR"
+        # Install or update plugins
+        print_info "Checking plugins..."
+        install_plugins "$ARK_SAVE_DIR"
+    fi
 
     print_script_header "✅ Server initialization complete"
     print_info "Starting server..."
-    "${MANAGER_DIR}/start.sh"
+    ark start
 
-    # Start the server monitor in the background
-    echo "🔍 Starting server monitor..."
-    "${MANAGER_DIR}/monitorManager.sh" start
+    # The monitor is started in the update script
+    # so we don't need to start it here
 
     # Start tail logs
     print_info "Starting log monitoring..."
-    tail_logs
+    ark logs
 }
 
 # Run the main function with all arguments

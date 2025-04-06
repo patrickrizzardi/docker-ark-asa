@@ -1,7 +1,7 @@
 #!/bin/bash
 # Zip extractor utility for ARK Server Manager
 
-source "${UTILS_PATH}/common.sh"
+source "${MANAGER_DIR}/utils/colorPrinter.sh"
 
 # Define cleanup function for trap
 cleanup() {

@@ -226,24 +226,24 @@ is_plugin_up_to_date() {
 
 # Install or update all plugins
 # Params:
-#   $1 - ARK_DIR - The ARK server directory
+#   $1 - ARK_SAVE_DIR - The ARK server directory
 install_plugins() {
-    local ark_dir="$1"
+    local ARK_SAVE_DIR="$1"
 
-    if is_empty "$ark_dir"; then
-        print_error "ARK_DIR is not set or is empty"
+    if is_empty "$ARK_SAVE_DIR"; then
+        print_error "ARK_SAVE_DIR is not set or is empty"
         return 1
     fi
 
-    if dir_does_not_exist "$ark_dir"; then
-        print_error "ARK directory does not exist: $ark_dir"
+    if dir_does_not_exist "$ARK_SAVE_DIR"; then
+        print_error "ARK directory does not exist: $ARK_SAVE_DIR"
         return 1
     fi
 
     print_script_header "Installing/Updating Plugins"
 
     # Make sure the plugins directory exists
-    local plugins_base_dir="${ark_dir}/ShooterGame/Binaries/Win64/ArkApi/Plugins"
+    local plugins_base_dir="${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins"
     ensure_dir "$plugins_base_dir" || {
         print_error "Failed to create plugins directory: $plugins_base_dir"
         return 1
@@ -300,14 +300,14 @@ install_plugins() {
 
 # Install a specific plugin by name
 # Params:
-#   $1 - ARK_DIR - The ARK server directory
+#   $1 - ARK_SAVE_DIR - The ARK server directory
 #   $2 - Plugin name
 install_specific_plugin() {
-    local ark_dir="$1"
+    local ARK_SAVE_DIR="$1"
     local plugin_name="$2"
 
-    if is_empty "$ark_dir"; then
-        print_error "ARK_DIR is not set or is empty"
+    if is_empty "$ARK_SAVE_DIR"; then
+        print_error "ARK_SAVE_DIR is not set or is empty"
         return 1
     fi
 
@@ -316,8 +316,8 @@ install_specific_plugin() {
         return 1
     fi
 
-    if dir_does_not_exist "$ark_dir"; then
-        print_error "ARK directory does not exist: $ark_dir"
+    if dir_does_not_exist "$ARK_SAVE_DIR"; then
+        print_error "ARK directory does not exist: $ARK_SAVE_DIR"
         return 1
     fi
 
@@ -332,7 +332,7 @@ install_specific_plugin() {
     local plugin_version="${PLUGIN_VERSIONS[$plugin_name]}"
 
     # Make sure the plugins directory exists
-    local plugins_base_dir="${ark_dir}/ShooterGame/Binaries/Win64/ArkApi/Plugins"
+    local plugins_base_dir="${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins"
     local plugin_dir="${plugins_base_dir}/${plugin_name}"
 
     ensure_dir "$plugins_base_dir" || {
@@ -369,24 +369,24 @@ install_specific_plugin() {
 
 # List all available plugins and their status
 # Params:
-#   $1 - ARK_DIR - The ARK server directory
+#   $1 - ARK_SAVE_DIR - The ARK server directory
 list_plugins() {
-    local ark_dir="$1"
+    local ARK_SAVE_DIR="$1"
 
-    if is_empty "$ark_dir"; then
-        print_error "ARK_DIR is not set or is empty"
+    if is_empty "$ARK_SAVE_DIR"; then
+        print_error "ARK_SAVE_DIR is not set or is empty"
         return 1
     fi
 
-    if ! dir_exists "$ark_dir"; then
-        print_error "ARK directory does not exist: $ark_dir"
+    if ! dir_exists "$ARK_SAVE_DIR"; then
+        print_error "ARK directory does not exist: $ARK_SAVE_DIR"
         return 1
     fi
 
     print_script_header "Available Plugins"
 
     # Make sure the plugins directory exists
-    local plugins_base_dir="${ark_dir}/ShooterGame/Binaries/Win64/ArkApi/Plugins"
+    local plugins_base_dir="${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkApi/Plugins"
     local header_printed=0
 
     # Table header

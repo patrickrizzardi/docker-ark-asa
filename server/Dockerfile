@@ -14,14 +14,16 @@ ENV PATH="${USER_SCRIPTS}:${PATH}"
 ENV ASA_APPID 2430930
 ENV SERVER_SHUTDOWN_TIMEOUT 30
 ENV STEAM_DIR /steam
+ENV ARK_SERVER_DIR /asa-server
+ENV ARK_SAVE_DIR /ark
+# ENV ARK_SAVE_DIR ${STEAM_DIR}/steamapps/common/asa-server
 ENV MANAGER_DIR /manager
-ENV ARK_DIR ${STEAM_DIR}/steamapps/common/asa-server
 ENV BACKUP_PATH /backups
 ENV MAX_BACKUPS 10
 
 # Wine configuration
-ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_DIR}
-ENV STEAM_COMPAT_DATA_PATH ${STEAM_DIR}/steamapps/compatdata/${ASA_APPID}
+ENV STEAM_COMPAT_CLIENT_INSTALL_PATH ${ARK_SERVER_DIR}
+ENV STEAM_COMPAT_DATA_PATH ${ARK_SERVER_DIR}/steamapps/compatdata/${ASA_APPID}
 ENV WINEDEBUG -all
 ENV WINEARCH win64
 ENV WINEPREFIX ${STEAM_COMPAT_DATA_PATH}/pfx
@@ -29,11 +31,11 @@ ENV DISPLAY :99
 ENV XDG_RUNTIME_DIR /tmp
 
 # Log and pid file locations
-ENV LOG_FILE ${ARK_DIR}/ShooterGame/Saved/Logs/ShooterGame.log
-ENV GAME_LOG_FILE ${ARK_DIR}/ShooterGame/Saved/Logs/ServerGame.*.log
-ENV API_LOG_FILE ${ARK_DIR}/ShooterGame/Binaries/Win64/logs/ArkApi_*.log
-ENV WINE_LOG_FILE ${ARK_DIR}/ShooterGame/Binaries/Win64/logs/wine.log
-ENV MONITOR_LOG ${ARK_DIR}/logs/server_monitor.log
+ENV LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/ShooterGame.log
+ENV GAME_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/ServerGame.*.log
+ENV API_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/logs/ArkApi_*.log
+ENV WINE_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/logs/wine.log
+ENV MONITOR_LOG ${ARK_SAVE_DIR}/logs/server_monitor.log
 
 # Locale configuration
 ENV LANG en_US.UTF-8
@@ -74,14 +76,13 @@ RUN set -ex \
     && groupadd --gid ${GID} ${USER} \
     && useradd --create-home --shell /bin/bash --uid ${UID} --gid ${GID} ${USER} \
     # Create required directories
-    && mkdir -p ${USER_SCRIPTS} ${ARK_DIR} ${MANAGER_DIR} ${STEAM_DIR} \
-    ${STEAM_COMPAT_DATA_PATH} ${BACKUP_PATH} ${WINEPREFIX} /tmp/.X11-unix /config \
-    ${ARK_DIR}/ShooterGame/Saved/Logs ${ARK_DIR}/ShooterGame/Binaries/Win64/logs \
+    && mkdir -p ${USER_SCRIPTS} ${ARK_SAVE_DIR} ${MANAGER_DIR} ${STEAM_DIR} ${ARK_SERVER_DIR} \
+    ${STEAM_COMPAT_DATA_PATH} ${BACKUP_PATH} ${WINEPREFIX} /tmp/.X11-unix \
     # Set permissions
     && chmod 1777 /tmp /tmp/.X11-unix \
     && touch /etc/fstab \
     && chown -R ${USER}:${USER} /home/${USER} ${STEAM_DIR} ${MANAGER_DIR} \
-    ${BACKUP_PATH} ${WINEPREFIX} /config ${ARK_DIR}
+    ${BACKUP_PATH} ${WINEPREFIX} ${ARK_SAVE_DIR} ${ARK_SERVER_DIR}
 
 # Switch to non-root user for remaining operations
 USER ${USER}
@@ -104,7 +105,7 @@ RUN set -ex \
     && chmod +x ${USER_SCRIPTS}/rcon
 
 # Copy scripts and configurations (separated for better cache utilization)
-COPY --chown=${USER} --chmod=644 ./config ${ARK_DIR}/ShooterGame/Saved/Config/WindowsServer
+COPY --chown=${USER} --chmod=644 ./config ${ARK_SAVE_DIR}/ShooterGame/Saved/Config/WindowsServer
 COPY --chown=${USER} --chmod=755 ./manager ${MANAGER_DIR}
 COPY --chown=${USER} --chmod=755 ./entrypoint.sh /entrypoint.sh
 

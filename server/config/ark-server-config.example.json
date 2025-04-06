@@ -78,7 +78,11 @@
 
   // Optional settings for the API
   "api": {
-    "enabled": "false", // Enable the API. Default is "false".
+    // Enable the API. Default is "false".
+    // If this is your first time setting up the server, and you want to use the API, set this to "true".
+    // If you do not the API will not be installed. If it is already installed you can leave this to "false" and
+    // use the `ark start api` command if you need to start the API manually.
+    "enabled": "false",
 
     // Optional plugins to load.
     // None of these are loaded by default.

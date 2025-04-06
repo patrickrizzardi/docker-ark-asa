@@ -24,7 +24,7 @@ source "${UTILS_PATH}/common.sh"
 
 # Required environment variables for restarting the server
 declare -a REQUIRED_VARS=(
-    "ARK_DIR"     # ARK installation directory
+    "ARK_SAVE_DIR"     # ARK installation directory
     "MANAGER_DIR" # Manager scripts directory
 )
 
@@ -89,7 +89,7 @@ create_restart_flags() {
     touch "$SERVER_RESTART_FLAG"
 
     # Create timestamp file for monitoring restart timeouts
-    date +%s >"${ARK_DIR}/restart_timestamp.tmp"
+    date +%s >"${ARK_SAVE_DIR}/restart_timestamp.tmp"
 
     print_info "Created restart flags"
 }
@@ -98,7 +98,7 @@ create_restart_flags() {
 # For start and stop flags, they will be removed by the start and stop scripts
 remove_restart_flags() {
     rm -f "$SERVER_RESTART_FLAG" 2>/dev/null || true
-    rm -f "${ARK_DIR}/restart_timestamp.tmp" 2>/dev/null || true
+    rm -f "${ARK_SAVE_DIR}/restart_timestamp.tmp" 2>/dev/null || true
 
     print_info "Removed restart flags"
 }

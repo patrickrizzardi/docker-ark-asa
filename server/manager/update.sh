@@ -20,9 +20,9 @@ source "$MANAGER_DIR/utils/common.sh"
 
 # Required environment variables for updating
 declare -a REQUIRED_VARS=(
-    "ARK_DIR"   # ARK installation directory
-    "STEAM_DIR" # SteamCMD directory
-    "ASA_APPID" # ARK: Survival Ascended App ID
+    "ARK_SAVE_DIR" # ARK installation directory
+    "STEAM_DIR"    # SteamCMD directory
+    "ASA_APPID"    # ARK: Survival Ascended App ID
 )
 
 # Optional environment variables
@@ -35,7 +35,7 @@ set_default_values() {
     CLEANUP_AFTER_UPDATE=${CLEANUP_AFTER_UPDATE:-"true"}
 
     # Files and paths
-    CURRENT_BUILD_ID_FILE="${ARK_DIR}/current_build_id.txt"
+    CURRENT_BUILD_ID_FILE="${ARK_SAVE_DIR}/current_build_id.txt"
 }
 
 # =============================================================================
@@ -86,7 +86,7 @@ get_current_build_id() {
 
 # Function to get the installed build ID from the app manifest
 get_installed_build_id() {
-    local acf_file="${STEAM_DIR}/steamapps/appmanifest_${ASA_APPID}.acf"
+    local acf_file="${ARK_SERVER_DIR}/steamapps/appmanifest_${ASA_APPID}.acf"
 
     if ! file_exists "$acf_file"; then
         print_warning "⚠️ App manifest not found: $acf_file"
@@ -169,10 +169,10 @@ update_server() {
 
     # Check if we need to force validation
     local validation_flag=""
-    if file_exists "${ARK_DIR}/force_validate.flag"; then
+    if file_exists "${ARK_SAVE_DIR}/force_validate.flag"; then
         print_warning "⚠️ Force validation flag detected"
         validation_flag="validate"
-        rm -f "${ARK_DIR}/force_validate.flag"
+        rm -f "${ARK_SAVE_DIR}/force_validate.flag"
     fi
 
     # Create a temporary file for capturing SteamCMD output
@@ -180,7 +180,7 @@ update_server() {
 
     # Run SteamCMD update command with loading animation
     print_info "Starting ARK server update..."
-    local update_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} ${validation_flag} +quit"
+    local update_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_SERVER_DIR} +login anonymous +app_update ${ASA_APPID} ${validation_flag} +quit"
 
     # Run the command with loading animation
     eval "$update_cmd" >"$steam_output_file" 2>&1 &
@@ -217,7 +217,7 @@ update_server() {
             print_info "Running file validation to ensure server integrity..."
 
             # Run validation command
-            local validate_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_DIR} +login anonymous +app_update ${ASA_APPID} validate +quit"
+            local validate_cmd="${STEAM_DIR}/steamcmd.sh +force_install_dir ${ARK_SERVER_DIR} +login anonymous +app_update ${ASA_APPID} validate +quit"
 
             # Run the command with loading animation
             eval "$validate_cmd" >"$steam_output_file" 2>&1 &
@@ -259,7 +259,7 @@ update_server() {
         print_info "Cleaning up unnecessary files..."
 
         # Remove large files not needed for server
-        rm -rf ${ARK_DIR}/ShooterGame/Content/Movies/ 2>/dev/null || true
+        rm -rf ${ARK_SAVE_DIR}/ShooterGame/Content/Movies/ 2>/dev/null || true
 
         # Clean up SteamCMD temporary files
         rm -rf ${STEAM_DIR}/Steam/logs/* 2>/dev/null || true
@@ -286,7 +286,7 @@ cleanup() {
 
 # Function to get monitor process ID if running
 get_monitor_pid() {
-    local MONITOR_PID_FILE="${ARK_DIR}/monitor.pid"
+    local MONITOR_PID_FILE="${ARK_SAVE_DIR}/monitor.pid"
 
     if file_exists "$MONITOR_PID_FILE"; then
         local pid=$(cat "$MONITOR_PID_FILE")

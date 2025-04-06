@@ -9,7 +9,7 @@ start_monitor() {
             echo "Starting ARK server monitor..."
             mkdir -p "${SAVED_DIR}/Logs" 2>/dev/null || true
             nohup "${MANAGER_DIR}/monitor.sh" >"${SAVED_DIR}/Logs/monitor.log" 2>&1 &
-            echo $! >"${ARK_DIR}/monitor.pid"
+            echo $! >"${ARK_SAVE_DIR}/monitor.pid"
             return 0
         else
             echo "Monitor script not found at ${MANAGER_DIR}/monitor.sh"
@@ -24,11 +24,11 @@ start_monitor() {
 # Stop the monitor
 stop_monitor() {
     if is_monitor_active; then
-        if [[ -f "${ARK_DIR}/monitor.pid" ]]; then
-            local monitor_pid=$(cat "${ARK_DIR}/monitor.pid")
+        if [[ -f "${ARK_SAVE_DIR}/monitor.pid" ]]; then
+            local monitor_pid=$(cat "${ARK_SAVE_DIR}/monitor.pid")
             echo "Stopping monitor (PID: $monitor_pid)..."
             kill "$monitor_pid" 2>/dev/null || true
-            rm -f "${ARK_DIR}/monitor.pid" 2>/dev/null || true
+            rm -f "${ARK_SAVE_DIR}/monitor.pid" 2>/dev/null || true
         else
             echo "Stopping all monitor processes..."
             pkill -f "monitor.sh" 2>/dev/null || true

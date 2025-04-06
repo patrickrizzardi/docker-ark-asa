@@ -14,7 +14,7 @@ source "${UTILS_PATH}/common.sh"
 
 # Required environment variables for restore
 declare -a REQUIRED_VARS=(
-    "ARK_DIR"     # ARK installation directory
+    "ARK_SAVE_DIR"     # ARK installation directory
     "BACKUP_PATH" # Path to store backups
     "MANAGER_DIR" # Manager scripts directory
 )
@@ -27,7 +27,7 @@ declare -a OPTIONAL_VARS=(
 # Default values for optional variables
 set_default_values() {
     BACKUP_NAME_PREFIX=${BACKUP_NAME_PREFIX:-"ark-backup"}
-    RESTORE_FLAG_FILE="${ARK_DIR}/restore_in_progress.flag"
+    RESTORE_FLAG_FILE="${ARK_SAVE_DIR}/restore_in_progress.flag"
 }
 
 # Function to create restore flag file
@@ -150,7 +150,7 @@ restore_backup() {
     create_restore_flag
 
     # Create saved directory if it doesn't exist
-    local saved_dir="$ARK_DIR/ShooterGame/Saved"
+    local saved_dir="$ARK_SAVE_DIR/ShooterGame/Saved"
     if [ ! -d "$saved_dir" ]; then
         print_info "Creating Saved directory..."
         mkdir -p "$saved_dir"
@@ -162,7 +162,7 @@ restore_backup() {
         local timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
         local safety_backup="$BACKUP_PATH/pre-restore-$timestamp.tar.gz"
 
-        tar -czf "$safety_backup" -C "$ARK_DIR/ShooterGame" Saved &>/dev/null
+        tar -czf "$safety_backup" -C "$ARK_SAVE_DIR/ShooterGame" Saved &>/dev/null
         print_success "✅ Safety backup created: $(basename "$safety_backup")"
     fi
 
@@ -174,7 +174,7 @@ restore_backup() {
     print_info "Extracting backup (this may take a while)..."
 
     # Start extraction and show progress
-    (tar -xzf "$SELECTED_BACKUP" -C "$ARK_DIR/ShooterGame" 2>/dev/null) &
+    (tar -xzf "$SELECTED_BACKUP" -C "$ARK_SAVE_DIR/ShooterGame" 2>/dev/null) &
     local tar_pid=$!
 
     # Show spinner while extracting

@@ -20,14 +20,14 @@ source "${MANAGER_DIR}/utils/common.sh"
 
 # Required environment variables
 declare -a REQUIRED_VARS=(
-    "ARK_DIR"               # ARK installation directory
+    "ARK_SAVE_DIR"               # ARK installation directory
     "NETWORK_SERVER_PORT"   # Server port
     "NETWORK_RCON_PORT"     # RCON port
     "SERVER_ADMIN_PASSWORD" # Admin password for RCON commands
 )
 
 # Configuration files
-EOS_FILE="${ARK_DIR}/eos_credentials.txt"
+EOS_FILE="${ARK_SAVE_DIR}/eos_credentials.txt"
 PDB_TOOL="${MANAGER_DIR}/pdb-sym2addr"
 
 # =============================================================================
@@ -255,8 +255,8 @@ setup_eos_credentials() {
     print_info "Setting up EOS API credentials..."
 
     # Check PDB is still available
-    if file_does_not_exist "${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb"; then
-        print_error "❌ Missing PDB file: ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb"
+    if file_does_not_exist "${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb"; then
+        print_error "❌ Missing PDB file: ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb"
         print_info "This file is needed to extract server credentials."
         return 1
     fi
@@ -310,7 +310,7 @@ setup_eos_credentials() {
     # Extract symbols
     print_info "Extracting EOS credentials from PDB file..."
 
-    local extract_cmd="$PDB_TOOL ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe ${ARK_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb DedicatedServerClientSecret DedicatedServerClientId DeploymentId"
+    local extract_cmd="$PDB_TOOL ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.exe ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/ArkAscendedServer.pdb DedicatedServerClientSecret DedicatedServerClientId DeploymentId"
     local symbols=$(loading "$extract_cmd" "Extracting credentials")
     local extract_status=$?
 

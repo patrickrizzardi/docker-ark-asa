@@ -57,18 +57,19 @@ services:
       context: ./server
       dockerfile: Dockerfile
     volumes:
-      # Server files
-      # - ./server/Saved:/steam/steamapps/common/asa-server
-      - ./server/config:/steam/steamapps/common/asa-server/ShooterGame/Saved/Config/WindowsServer
+      - steam_data:/steam
+      - ark_data:/ark
+      - ark_backups:/backups
 
-      # Logs
-      # - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      # - ./server/logs/island-logs:/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
+      # Config files
+      # If you want to be able to access configs and update them locally, ensure you use this
+      # otherwise you can omit this because the ark_data volume will be used for the config files
+      - ./server/config:/ark/ShooterGame/Saved/Config/WindowsServer
+      # Note: If you intend to run multiple containers with different maps, you will need to add a config file for each map
+      #       and mount it to the default config name of ark-server-config.json like this:
+      #       - ./server/config/ark-server-config-<map>.json:/ark/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json
 
-      # Backups
-      - ./server/backups/the-island:/backups
-
-      # For dev purposes
+      # For dev purposes, these files are built into the image
       - ./server/manager:/manager
       - ./server/entrypoint.sh:/entrypoint.sh
     ports:
@@ -299,3 +300,5 @@ networks:
 
 volumes:
   steam_data:
+  ark_data:
+  ark_backups:
