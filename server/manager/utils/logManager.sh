@@ -111,6 +111,12 @@ monitor_all_logs() {
             ((found_logs++))
         fi
 
+        # Add Crash log if it exists
+        if file_exists "$CRASH_LOG_FILE" && is_not_empty "$CRASH_LOG_FILE"; then
+            files_to_tail="$files_to_tail $CRASH_LOG_FILE"
+            ((found_logs++))
+        fi
+
         # Check if we have any log files to tail and if they've changed
         if is_empty "$files_to_tail"; then
             print_info "Waiting for log files to appear..."
@@ -152,6 +158,35 @@ monitor_main_log() {
         print_info "Log file found! Starting to monitor."
         tail -f "$LOG_FILE" | while read -r line; do
             format_log_line "MAIN" "$line"
+        done
+    fi
+}
+
+# Function to monitor the Crash log
+monitor_crash_log() {
+    # Register another trap specifically for this function
+    trap 'echo -e "\n${NC}"; return' INT
+
+    print_script_header "💥 Monitoring Crash Log"
+
+    if file_exists "$CRASH_LOG_FILE" && is_not_empty "$CRASH_LOG_FILE"; then
+        print_info "Monitoring crash log file: $CRASH_LOG_FILE"
+        tail -f "$CRASH_LOG_FILE" | while read -r line; do
+            format_log_line "CRASH" "$line"
+        done
+    else
+        print_error "Crash log file not found: $CRASH_LOG_FILE"
+        print_info "Waiting for log file to appear..."
+
+        # Wait for log file to appear
+        while file_does_not_exist "$CRASH_LOG_FILE"; do
+            sleep 5
+            print_info "Still waiting for log file..."
+        done
+
+        print_info "Log file found! Starting to monitor."
+        tail -f "$CRASH_LOG_FILE" | while read -r line; do
+            format_log_line "CRASH" "$line"
         done
     fi
 }

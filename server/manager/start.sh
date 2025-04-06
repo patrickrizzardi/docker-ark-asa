@@ -308,16 +308,10 @@ start_server() {
     # Display the full command for debugging
     print_info "Full command line: wine64 \"${executable_path}\" \"${cmd}\" ${flags}"
 
-    # Truncate the log file to avoid confusion with previous runs
-    if [ -f "${WINE_LOG_FILE}" ]; then
-        print_info "Truncating existing log file: ${WINE_LOG_FILE}"
-        echo "=== Server start at $(date) ===" >"${WINE_LOG_FILE}"
-    fi
-
     # Start the server in the background and create a server start flag
     print_info "Starting server process..."
     create_flag "start"
-    nohup wine64 "${executable_path}" "${cmd}" ${flags} >"${WINE_LOG_FILE}" 2>&1 &
+    nohup wine64 "${executable_path}" "${cmd}" ${flags} >"${LOG_FILE}" 2>&1 &
 
     local wine_pid=$!
     print_info "Started process with PID: $wine_pid"
@@ -334,14 +328,17 @@ start_server() {
     fi
 
     # Check logs for any errors
-    check_logs_for_errors "${WINE_LOG_FILE}" 100
+    check_logs_for_errors "${LOG_FILE}" 100
+    check_logs_for_errors "${GAME_LOG_FILE}" 100
+    check_logs_for_errors "${API_LOG_FILE}" 100
+    check_logs_for_errors "${CRASH_LOG_FILE}" 100
     # Note: We continue even if errors are found, as they might be non-fatal
 
     # Verify server has actually started and is responsive
     if ! verify_server_started $SYSTEM_STARTUP_TIMEOUT; then
         print_error "❌ Server verification failed"
         print_info "Last 20 lines of the log:"
-        tail -n 20 "${WINE_LOG_FILE}" 2>/dev/null || echo "Log file not available"
+        tail -n 20 "${LOG_FILE}" 2>/dev/null || echo "Log file not available"
         return 1
     fi
 

@@ -30,6 +30,7 @@ ENV XDG_RUNTIME_DIR /tmp
 
 # Log and pid file locations
 ENV LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/ShooterGame.log
+ENV CRASH_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/Crash*.log
 ENV GAME_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Saved/Logs/ServerGame.*.log
 ENV API_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/logs/ArkApi_*.log
 ENV WINE_LOG_FILE ${ARK_SAVE_DIR}/ShooterGame/Binaries/Win64/logs/wine.log
