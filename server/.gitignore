@@ -2,3 +2,4 @@ backups
 logs
 Saved
 .eos.config
+pdb_sym2addr
