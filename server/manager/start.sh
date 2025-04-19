@@ -289,7 +289,7 @@ start_server() {
     fi
 
     # Build the command string with server parameters
-    local cmd="${SERVER_MAP}?listen?SessionName=${SERVER_SESSION_NAME}?Port=${NETWORK_SERVER_PORT}"
+    local cmd="${SERVER_MAP}?listen?SessionName=${SERVER_SESSION_NAME}"
 
     # Add optional parameters if they are set
     if [ -n "${GAMEPLAY_MAX_PLAYERS}" ]; then
@@ -300,16 +300,18 @@ start_server() {
         cmd="${cmd}?ServerPassword=${SERVER_PASSWORD}"
     fi
 
-    if [ -n "${SERVER_ADMIN_PASSWORD}" ]; then
-        cmd="${cmd}?ServerAdminPassword=${SERVER_ADMIN_PASSWORD}"
-    fi
-
     if [ -n "${NETWORK_RCON_PORT}" ]; then
         cmd="${cmd}?RCONEnabled=True?RCONPort=${NETWORK_RCON_PORT}"
     fi
 
     if [ -n "${NETWORK_QUERY_PORT}" ]; then
         cmd="${cmd}?QueryPort=${NETWORK_QUERY_PORT}"
+    fi
+
+    # IMPORTANT: According to https://ark.wiki.gg/wiki/Dedicated_server_setup this must be the last argument, otherwise it will parse
+    # all other arguments after this as part of the password
+    if [ -n "${SERVER_ADMIN_PASSWORD}" ]; then
+        cmd="${cmd}?ServerAdminPassword=${SERVER_ADMIN_PASSWORD}"
     fi
 
     # Add any extra options specified in the environment
@@ -325,7 +327,7 @@ start_server() {
     fi
 
     # Add standard logging flags
-    flags="${flags} -log -ServerRCONOutputTribeLogs -gameplaylogging -servergamelog -servergamelogincludetribelogs"
+    flags="${flags} -log -ServerRCONOutputTribeLogs -gameplaylogging -servergamelog -servergamelogincludetribelogs -port=${NETWORK_SERVER_PORT}"
 
     # Configure BattlEye based on settings
     if [ "${GAMEPLAY_BATTLEYE}" = "True" ] || [ "${GAMEPLAY_BATTLEYE}" = "1" ] || [ "${GAMEPLAY_BATTLEYE}" = "true" ]; then
@@ -345,6 +347,11 @@ start_server() {
     if [ -n "${SERVER_CLUSTER_ID}" ]; then
         flags="${flags} -clusterid=${SERVER_CLUSTER_ID}"
         print_info "Using cluster ID: ${SERVER_CLUSTER_ID}"
+    fi
+
+    # Add query port if specified
+    if [ -n "${NETWORK_QUERY_PORT}" ]; then
+        flags="${flags} -NitradoQueryPort=${NETWORK_QUERY_PORT}"
     fi
 
     # Add any extra dash options
