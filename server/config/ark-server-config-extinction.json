@@ -1,0 +1,76 @@
+{
+  "server": {
+    "map": "Extinction_WP",
+    "session_name": "PvP - YINZERS - Extinction",
+    "cluster_id": "yinzers",
+    "password": "",
+    "admin_password": "ab89EBHAEh5b",
+    "description": "Welcome to my ARK server!",
+    "message_of_the_day": "Welcome to the server! Enjoy your stay.",
+    "shutdown_message": "Server is shutting down for maintenance. Please reconnect in a few minutes."
+  },
+
+  "network": {
+    "server_port": "7783",
+    "query_port": "27021",
+    "rcon_port": "27026"
+  },
+
+  "gameplay": {
+    "max_players": "70",
+    "battleye": "true",
+
+    "extra_options": {
+      "OverrideOfficialDifficulty": "5.0",
+      "AllowCrateSpawnsOnTopOfStructures": "true",
+      "AllowFlyingStaminaRecovery": "true",
+      "ShowFloatingDamageText": "true",
+      "MaxPersonalTamedDinos": "500"
+    },
+
+    "extra_dash_options": [
+      "-NoTransferFromFiltering",
+      "-ForceAllowCaveFlyers",
+      "-usecache",
+      "-crossplay",
+      "-culture=en",
+      "-ForceRespawnDinos"
+    ],
+
+    "mods": [ "929420", "942249", "941697", "1022167", "949310", "929299", "929868", "928597", "947733", "930494","947733","930684"]
+  },
+
+  "system": {
+    "startup_timeout": "60",
+    "startup_wait": "60",
+    "warning_time": "5",
+    "shutdown_timeout": "30",
+    "check_interval": "30",
+    "restart_wait": "60",
+    "stale_lock_time": "30",
+    "max_restart_attempts": "3",
+    "update_check_interval": "6",
+    "initial_startup_delay": "60"
+  },
+
+  "backup": {
+    "max_backups": "10",
+    "compression_level": "5",
+    "name_prefix": "ark-backup"
+  },
+
+  "api": {
+    "enabled": "false",
+
+    "plugins": [
+      {
+        "name": "ServerAPI",
+        "url": "https://github.com/ServersHub/ServerAPI/releases/latest/download/ServerAPI.zip"
+      },
+      {
+        "name": "ExamplePlugin",
+        "url": "https://example.com/ExamplePlugin.zip"
+      }
+    ]
+  }
+}
