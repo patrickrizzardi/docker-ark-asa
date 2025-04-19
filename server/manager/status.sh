@@ -20,7 +20,7 @@ source "${MANAGER_DIR}/utils/common.sh"
 
 # Required environment variables
 declare -a REQUIRED_VARS=(
-    "ARK_SAVE_DIR"               # ARK installation directory
+    "ARK_SAVE_DIR"          # ARK installation directory
     "NETWORK_SERVER_PORT"   # Server port
     "NETWORK_RCON_PORT"     # RCON port
     "SERVER_ADMIN_PASSWORD" # Admin password for RCON commands
@@ -28,7 +28,7 @@ declare -a REQUIRED_VARS=(
 
 # Configuration files
 EOS_FILE="${ARK_SAVE_DIR}/eos_credentials.txt"
-PDB_TOOL="${MANAGER_DIR}/pdb-sym2addr"
+PDB_TOOL="${ARK_SAVE_DIR}/pdb-sym2addr"
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -553,6 +553,7 @@ EOF
 
 # Function to display detailed status using EOS API
 get_detailed_status() {
+    print_info "Getting detailed status..."
     # Get detailed status information
     set_detailed_status_variables
     local status_result=$?
@@ -598,6 +599,7 @@ get_detailed_status() {
         echo ""
         full_status_first_run
         if [ $? -eq 0 ]; then
+
             # If setup succeeded, retry with new credentials
             set_detailed_status_variables
 
