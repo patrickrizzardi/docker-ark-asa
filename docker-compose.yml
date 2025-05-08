@@ -39,113 +39,107 @@ services:
   #     ARK_ADMIN_PASSWORD: ab89EBHAEh5b
   #     ISLAND_RCON_PORT: 27020
 
-  discord:
-    user: bun
-    image: oven/bun:1.0.4
-    restart: unless-stopped
-    working_dir: /usr/src/app
-    command: sh -c "bun install && bun --watch discord/index.discord.ts"
-    volumes:
-      - ./:/usr/src/app
-    networks:
-      - ark
+  # discord:
+  #   user: bun
+  #   image: oven/bun:1.0.4
+  #   restart: unless-stopped
+  #   working_dir: /usr/src/app
+  #   command: sh -c "bun install && bun --watch discord/index.discord.ts"
+  #   volumes:
+  #     - ./:/usr/src/app
+  #   networks:
+  #     - ark
 
   island:
+    # Enable color output in logs
+    tty: true
+    # Increase default grace period to ensure clean shutdown
+    stop_grace_period: 30s
     build:
       context: ./server
       dockerfile: Dockerfile
     volumes:
-      - ./server/Saved:/opt/steam/steamapps/common/asa-server
-      - ./server/logs/island-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/island-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
-      - ./server/backups/the-island:/var/backups/asa-server
-      # - steam_data:/opt/steam
+      - steam_data:/steam
+      - ark_data:/ark
+      - ark_backups:/backups
+
+      # Config files
+      # If you want to be able to access configs and update them locally, ensure you use this
+      # otherwise you can omit this because the ark_data volume will be used for the config files
+      # - ./server/config:/ark/ShooterGame/Saved/Config/WindowsServer
+      # Note: If you intend to run multiple containers with different maps, you will need to add a config file for each map,
+      #       comment out the line above and mount it to the default config name of ark-server-config.json like this:
+      - ./server/config/ark-server-config-island.json:/ark/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json
+      - ./server/config/Game.ini:/ark/ShooterGame/Saved/Config/WindowsServer/Game.ini
+      - ./server/config/GameUserSettings.ini:/ark/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini
+
+      # For dev purposes, these files are built into the image
+      - ./server/manager:/manager
+      - ./server/entrypoint.sh:/entrypoint.sh
     ports:
       - 7777:7777/udp
-      - 7778:7778/udp
       - 27015:27015/udp
       - 27020:27020/tcp
     networks:
       - ark
+    deploy:
+      resources:
+        limits:
+          memory: 12g
+
+  astraeos:
+    # Enable color output in logs
+    tty: true
     # Increase default grace period to ensure clean shutdown
     stop_grace_period: 30s
-    environment:
-      SERVER_MAP: TheIsland_WP
-      SESSION_NAME: 'PvP - YINZERS - The Island'
-      SERVER_PORT: 7777
-      RAW_PORT: 7778
-      QUERY_PORT: 27015
-      MAX_PLAYERS: 70
-      SERVER_SHUTDOWN_TIMEOUT: 30
-      ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      CLUSTER: 'yinzers'
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    volumes:
+      - steam_data:/steam
+      - ark_data:/ark
+      - ark_backups:/backups
 
-      # If you disable RCON, the builtin manager won't work
-      RCON_PORT: 27020
-      BATTLEYE: 'True'
+      # Config files
+      - ./server/config/ark-server-config-astraeos.json:/ark/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json
+      - ./server/config/Game.ini:/ark/ShooterGame/Saved/Config/WindowsServer/Game.ini
+      - ./server/config/GameUserSettings.ini:/ark/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini
 
-      # Extra arguments
-      ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
+      # For dev purposes, these files are built into the image
+      - ./server/manager:/manager
+      - ./server/entrypoint.sh:/entrypoint.sh
+    ports:
+      - 7779:7779/udp
+      - 27017:27017/udp
+      - 27022:27022/tcp
+    networks:
+      - ark
     deploy:
       resources:
         limits:
           memory: 12g
 
   scorched-earth:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    volumes:
-      - ./server/Saved:/opt/steam/steamapps/common/asa-server
-      - ./server/logs/scorched-earth-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/scorched-earth-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
-      - ./server/backups/the-center:/var/backups/asa-server
-      # - steam_data:/opt/steam
-    ports:
-      - 7779:7779/udp
-      - 7780:7780/udp
-      - 27017:27017/udp
-      - 27022:27022/tcp
-    networks:
-      - ark
+    # Enable color output in logs
+    tty: true
     # Increase default grace period to ensure clean shutdown
     stop_grace_period: 30s
-    environment:
-      SERVER_MAP: ScorchedEarth_WP
-      SESSION_NAME: 'PvP - YINZERS - Scorched Earth'
-      SERVER_PORT: 7779
-      RAW_PORT: 7780
-      QUERY_PORT: 27017
-      MAX_PLAYERS: 70
-      SERVER_SHUTDOWN_TIMEOUT: 30
-      ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      CLUSTER: 'yinzers'
-
-      # If you disable RCON, the builtin manager won't work
-      RCON_PORT: 27022
-      BATTLEYE: 'True'
-
-      # Extra arguments
-      ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
-    deploy:
-      resources:
-        limits:
-          memory: 12g
-
-  the-center:
     build:
       context: ./server
       dockerfile: Dockerfile
     volumes:
-      - ./server/Saved:/opt/steam/steamapps/common/asa-server
-      - ./server/logs/the-center-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/the-center-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
-      - ./server/backups/the-center:/var/backups/asa-server
-      # - steam_data:/opt/steam
+      - steam_data:/steam
+      - ark_data:/ark
+      - ark_backups:/backups
+
+      # Config files
+      - ./server/config/ark-server-config-scorched-earth.json:/ark/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json
+      - ./server/config/Game.ini:/ark/ShooterGame/Saved/Config/WindowsServer/Game.ini
+      - ./server/config/GameUserSettings.ini:/ark/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini
+
+      # For dev purposes, these files are built into the image
+      - ./server/manager:/manager
+      - ./server/entrypoint.sh:/entrypoint.sh
     ports:
       - 7781:7781/udp
       - 7782:7782/udp
@@ -153,85 +147,64 @@ services:
       - 27024:27024/tcp
     networks:
       - ark
-    # Increase default grace period to ensure clean shutdown
-    stop_grace_period: 30s
-    environment:
-      SERVER_MAP: TheCenter_WP
-      SESSION_NAME: 'PvP - YINZERS - TheCenter'
-      SERVER_PORT: 7781
-      RAW_PORT: 7782
-      QUERY_PORT: 27019
-      MAX_PLAYERS: 70
-      SERVER_SHUTDOWN_TIMEOUT: 30
-      ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      CLUSTER: 'yinzers'
-
-      # If you disable RCON, the builtin manager won't work
-      RCON_PORT: 27024
-      BATTLEYE: 'True'
-
-      # Extra arguments
-      ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
     deploy:
       resources:
         limits:
           memory: 12g
 
   extinction:
+    # Enable color output in logs
+    tty: true
+    # Increase default grace period to ensure clean shutdown
+    stop_grace_period: 30s
     build:
       context: ./server
       dockerfile: Dockerfile
     volumes:
-      - ./server/Saved:/opt/steam/steamapps/common/asa-server
-      - ./server/logs/extinction-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/extinction-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
-      - ./server/backups/extinction:/var/backups/asa-server
-      # - steam_data:/opt/steam
+      - steam_data:/steam
+      - ark_data:/ark
+      - ark_backups:/backups
+
+      # Config files
+      - ./server/config/ark-server-config-extinction.json:/ark/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json
+      - ./server/config/Game.ini:/ark/ShooterGame/Saved/Config/WindowsServer/Game.ini
+      - ./server/config/GameUserSettings.ini:/ark/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini
+
+      # For dev purposes, these files are built into the image
+      - ./server/manager:/manager
+      - ./server/entrypoint.sh:/entrypoint.sh
     ports:
       - 7783:7783/udp
-      - 7784:7784/udp
       - 27021:27021/udp
       - 27026:27026/tcp
     networks:
       - ark
-    # Increase default grace period to ensure clean shutdown
-    stop_grace_period: 30s
-    environment:
-      SERVER_MAP: Extinction_WP
-      SESSION_NAME: 'PvP - YINZERS - Extinction'
-      SERVER_PORT: 7783
-      RAW_PORT: 7784
-      QUERY_PORT: 27021
-      MAX_PLAYERS: 70
-      SERVER_SHUTDOWN_TIMEOUT: 30
-      ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      CLUSTER: 'yinzers'
-
-      # If you disable RCON, the builtin manager won't work
-      RCON_PORT: 27026
-      BATTLEYE: 'True'
-
-      # Extra arguments
-      ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
     deploy:
       resources:
         limits:
           memory: 12g
 
   abberation:
+    # Enable color output in logs
+    tty: true
+    # Increase default grace period to ensure clean shutdown
+    stop_grace_period: 30s
     build:
       context: ./server
       dockerfile: Dockerfile
     volumes:
-      - ./server/Saved:/opt/steam/steamapps/common/asa-server
-      - ./server/logs/aberration-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Saved/Logs
-      - ./server/logs/aberration-logs:/opt/steam/steamapps/common/asa-server/ShooterGame/Binaries/Win64/logs
-      - ./server/backups/aberration:/var/backups/asa-server
-      # - steam_data:/opt/steam
+      - steam_data:/steam
+      - ark_data:/ark
+      - ark_backups:/backups
+
+      # Config files
+      - ./server/config/ark-server-config-abberation.json:/ark/ShooterGame/Saved/Config/WindowsServer/ark-server-config.json
+      - ./server/config/Game.ini:/ark/ShooterGame/Saved/Config/WindowsServer/Game.ini
+      - ./server/config/GameUserSettings.ini:/ark/ShooterGame/Saved/Config/WindowsServer/GameUserSettings.ini
+
+      # For dev purposes, these files are built into the image
+      - ./server/manager:/manager
+      - ./server/entrypoint.sh:/entrypoint.sh
     ports:
       - 7785:7785/udp
       - 7786:7786/udp
@@ -239,54 +212,33 @@ services:
       - 27028:27028/tcp
     networks:
       - ark
-    # Increase default grace period to ensure clean shutdown
-    stop_grace_period: 30s
-    environment:
-      SERVER_MAP: Aberration_P
-      SESSION_NAME: 'PvP - YINZERS - Aberration'
-      SERVER_PORT: 7785
-      RAW_PORT: 7786
-      QUERY_PORT: 27023
-      MAX_PLAYERS: 70
-      SERVER_SHUTDOWN_TIMEOUT: 30
-      ARK_ADMIN_PASSWORD: ab89EBHAEh5b
-      CLUSTER: 'yinzers'
-
-      # If you disable RCON, the builtin manager won't work
-      RCON_PORT: 27028
-      BATTLEYE: 'True'
-
-      # Extra arguments
-      ARK_EXTRA_OPTS: '?OverrideOfficialDifficulty=5.0?AllowCrateSpawnsOnTopOfStructures=true?AllowFlyingStaminaRecovery=true?ShowFloatingDamageText=true?MaxPersonalTamedDinos=500'
-      ARK_EXTRA_DASH_OPTS: '-NoTransferFromFiltering -ForceAllowCaveFlyers -usecache -crossplay -culture=en -ForceRespawnDinos'
-      EVENT: 'WinterWonderland' # Easter, Arkaeology, ExtinctionChronicles, WinterWonderland, vday, Summer, FearEvolved, TurkeyTrial, birthday, None
     deploy:
       resources:
         limits:
           memory: 12g
 
-  db:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: app
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_PASSWORD: password
-      MYSQL_USER: app
-      SERVICE_TAGS: dev
-      SERVICE_NAME: mysql
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
-      interval: 5s
-      timeout: 30s
-      retries: 3
-      start_period: 5s
-    volumes:
-      - /var/lib/mysql
-    # ports:
-    #   - 3306:3306
-    networks:
-      - ark
+  # db:
+  #   image: mysql:8.0
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_DATABASE: app
+  #     MYSQL_ROOT_PASSWORD: password
+  #     MYSQL_PASSWORD: password
+  #     MYSQL_USER: app
+  #     SERVICE_TAGS: dev
+  #     SERVICE_NAME: mysql
+  #   healthcheck:
+  #     test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+  #     interval: 5s
+  #     timeout: 30s
+  #     retries: 3
+  #     start_period: 5s
+  #   volumes:
+  #     - /var/lib/mysql
+  # ports:
+  #   - 3306:3306
+  # networks:
+  #   - ark
 
   # redis:
   #   image: redis:alpine
@@ -309,3 +261,5 @@ networks:
 
 volumes:
   steam_data:
+  ark_data:
+  ark_backups:
